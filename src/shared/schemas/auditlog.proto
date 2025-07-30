@@ -1,0 +1,9 @@
+syntax = "proto3";
+package google.cloud.audit;
+
+message AuditLog {
+  string serviceName = 7;
+  string methodName = 8;
+  string resourceName = 11;
+  // You can add more fields from https://cloud.google.com/logging/docs/audit#auditlog
+}

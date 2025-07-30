@@ -1,0 +1,398 @@
+"Framework requirement","Framework code","Title","ID","UID","Url","Description","Description modified?","Evidence status","Domain","Owner"
+"C.4.1","C.4.1","Understanding the organization and its context","GOV-89","77yz851y","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=77yz851y","The organization shall determine external and internal issues that are relevant to its purpose and that affect its ability to achieve the intended outcome(s) of its information security management system.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.4.2","C.4.2","Understanding the needs of interested parties","GOV-90","3h090bng","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=3h090bng","The organization shall determine: 
+
+a) interested parties that are relevant to the information security management system; 
+
+b) the relevant requirements of these interested parties; 
+
+c) which of these requirements will be addressed through the information security management system.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.4.3","C.4.3","Determining the scope of the information security management system","AST-65","95gl3uru","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=95gl3uru","The organization shall determine the boundaries and applicability of the information security management system to establish its scope. When determining this scope, the organization shall consider: 
+
+a) the external and internal issues referred to in 4.1; 
+
+b) the requirements referred to in 4.2; 
+
+c) interfaces and dependencies between activities performed by the organization, and those that are performed by other organizations. 
+
+The scope shall be available as documented information.","No","OK","ASSET_MANAGEMENT",""
+"C.4.4","C.4.4","Information security management system","GOV-91","wx3ruzdu","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=wx3ruzdu","The organization shall establish, implement, maintain and continually improve an information security management system, including the processes needed and their interactions, in accordance with the requirements of ISO 27001.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.5.1","C.5.1","Leadership and commitment","GOV-92","ulnhky2w","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=ulnhky2w","Top management shall demonstrate leadership and commitment with respect to the information security management system by: 
+
+a) ensuring the information security policy and the information security objectives are established and are compatible with the strategic direction of the organization; 
+
+b) ensuring the integration of the information security management system requirements into the organization’s processes; 
+
+c) ensuring that the resources needed for the information security management system are available; 
+
+d) communicating the importance of effective information security management and of conforming to the information security management system requirements; 
+
+e) ensuring that the information security management system achieves its intended outcome(s); 
+
+f) directing and supporting persons to contribute to the effectiveness of the information security management system; 
+
+g) promoting continual improvement; and 
+
+h) supporting other relevant management roles to demonstrate their leadership as it applies to their areas of responsibility.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.5.2","C.5.2","Policy","GOV-93","6zi88387","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=6zi88387","Top management shall establish an information security policy that: 
+
+a) is appropriate to the purpose of the organization; 
+
+b) includes information security objectives (see 6.2) or provides the framework for setting information security objectives; 
+
+c) includes a commitment to satisfy applicable requirements related to information security; 
+
+d) includes a commitment to continual improvement of the information security management system.
+
+The information security policy shall: 
+
+e) be available as documented information; 
+
+f) be communicated within the organization; 
+
+g) be available to interested parties, as appropriate.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.5.3","C.5.3","Organizational roles, responsibilities and authorities","GOV-94","iu7o7dv3","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=iu7o7dv3","Top management shall ensure that the responsibilities and authorities for roles relevant to information security are assigned and communicated within the organization. 
+
+Top management shall assign the responsibility and authority for: 
+
+a) ensuring that the information security management system conforms to the requirements of this document; 
+
+b) reporting on the performance of the information security management system to top management.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.6.1.1","C.6.1.1","General actions to address risks and opportunities","RSK-35","x71vtj2d","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=x71vtj2d","When planning for the information security management system, the organization shall consider the issues referred to in 4.1 and the requirements referred to in 4.2 and determine the risks and opportunities that need to be addressed to: 
+
+a) ensure the information security management system can achieve its intended outcome(s); 
+
+b) prevent, or reduce, undesired effects; 
+
+c) achieve continual improvement.
+
+The organization shall plan: 
+
+d) actions to address these risks and opportunities; and 
+
+e) how to 
+  1) integrate and implement the actions into its information security management system processes; and 
+  2) evaluate the effectiveness of these actions","No","OK","RISK_MANAGEMENT","adrian@moonlet.io"
+"C.6.1.2","C.6.1.2","Information security risk assessment","RSK-36","sxcpoygj","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=sxcpoygj","The organization shall define and apply an information security risk assessment process that: 
+
+a) establishes and maintains information security risk criteria that include: 
+  1) the risk acceptance criteria; and 
+  2) criteria for performing information security risk assessments; 
+
+b) ensures that repeated information security risk assessments produce consistent, valid and comparable results; 
+
+c) identifies the information security risks: 
+  1) apply the information security risk assessment process to identify risks associated with the loss of confidentiality, integrity and availability for information within the scope of the information security management system; and 
+  2) identify the risk owners; 
+
+d) analyses the information security risks: 
+  1) assess the potential consequences that would result if the risks identified in 6.1.2 c) 1) were to materialize; 
+  2) assess the realistic likelihood of the occurrence of the risks identified in 6.1.2 c) 1); and 
+  3) determine the levels of risk; 
+
+e) evaluates the information security risks: 
+  1) compare the results of risk analysis with the risk criteria established in 6.1.2 a); and 
+  2) prioritize the analysed risks for risk treatment. 
+
+The organization shall retain documented information about the information security risk assessment process.","No","OK","RISK_MANAGEMENT","adrian@moonlet.io"
+"C.6.1.3","C.6.1.3","Information security risk treatment","RSK-37","jkza2tda","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=jkza2tda","The organization shall define and apply an information security risk treatment process to: 
+
+a) select appropriate information security risk treatment options, taking account of the risk assessment results; 
+
+b) determine all controls that are necessary to implement the information security risk treatment option(s) chosen; 
+
+c) compare the controls determined in 6.1.3 b) above with those in Annex A and verify that no necessary controls have been omitted; 
+
+d) produce a Statement of Applicability that contains: 
+
+— the necessary controls (see 6.1.3 b) and c)); 
+
+  — justification for their inclusion; 
+
+  — whether the necessary controls are implemented or not; and 
+
+  — the justification for excluding any of the Annex A controls. 
+
+e) formulate an information security risk treatment plan; and 
+
+f) obtain risk owners’ approval of the information security risk treatment plan and acceptance of the residual information security risks. 
+
+The organization shall retain documented information about the information security risk treatment process.","No","Needs evidence","RISK_MANAGEMENT","adrian@moonlet.io"
+"C.6.2","C.6.2","Information security objective and planning to achieve them","GOV-95","ucm1fk9z","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=ucm1fk9z","The organization shall establish information security objectives at relevant functions and levels. The information security objectives shall:
+
+a) be consistent with the information security policy; 
+
+b) be measurable (if practicable); 
+
+c) take into account applicable information security requirements, and results from risk assessment and risk treatment; 
+
+d) be monitored; 
+
+e) be communicated; 
+
+f) be updated as appropriate; 
+
+g) be available as documented information. 
+
+The organization shall retain documented information on the information security objectives. 
+
+When planning how to achieve its information security objectives, the organization shall determine: 
+
+h) what will be done; 
+
+i) what resources will be required; 
+
+j) who will be responsible; 
+
+k) when it will be completed; and 
+
+l) how the results will be evaluated.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.6.3","C.6.3","Planning of Changes","CHG-37","knlhbqw2","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=knlhbqw2","When the organization determines the need for changes to the information security management system, the changes shall be carried out in a planned manner.","No","Needs evidence","CHANGE_MANAGEMENT","adrian@moonlet.io"
+"C.7.1","C.7.1","Resources","PRM-13","zziew7y2","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zziew7y2","The organization shall determine and provide the resources needed for the establishment, implementation, maintenance and continual improvement of the information security management system.","No","OK","PROJECT_RESOURCE_MANAGEMENT","adrian@moonlet.io"
+"C.7.2","C.7.2","Competence","HRS-52","kksxe7ll","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=kksxe7ll","The organization shall:
+
+a) determine the necessary competence of person(s) doing work under its control that affects its information security performance; 
+
+b) ensure that these persons are competent on the basis of appropriate education, training, or experience; 
+
+c) where applicable, take actions to acquire the necessary competence, and evaluate the effectiveness of the actions taken; and 
+
+d) retain appropriate documented information as evidence of competence.","No","Needs evidence","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"C.7.3","C.7.3","Awareness","HRS-53","h8fbfi9g","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=h8fbfi9g","Persons doing work under the organization’s control shall be aware of:
+
+a) the information security policy; 
+
+b) their contribution to the effectiveness of the information security management system, including the benefits of improved information security performance; and 
+
+c) the implications of not conforming with the information security management system requirements.","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"C.7.4","C.7.4","Communication","GOV-96","qvl84rml","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=qvl84rml","The organization shall determine the need for internal and external communications relevant to the information security management system including: 
+
+a) on what to communicate;
+
+b) when to communicate;
+
+c) with whom to communicate;
+
+d) how to communicate.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.7.5.1","C.7.5.1","Documented information","GOV-97","iuq8lnb6","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=iuq8lnb6","The organization’s information security management system shall include: 
+
+a) documented information required by this document; and 
+
+b) documented information determined by the organization as being necessary for the effectiveness of the information security management system.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.7.5.2","C.7.5.2","Creating and Updating","GOV-98","gidyzqry","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=gidyzqry","When creating and updating documented information the organization shall ensure appropriate:
+
+a) identification and description (e.g. a title, date, author, or reference number);
+
+b) format (e.g. language, software version, graphics) and media (e.g. paper, electronic); and
+
+c) review and approval for suitability and adequacy.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.7.5.3","C.7.5.3","Control of documented information","GOV-99","k955ti0a","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=k955ti0a","Documented information required by the information security management system and by this document shall be controlled to ensure: 
+
+a) it is available and suitable for use, where and when it is needed; and
+
+b) it is adequately protected (e.g. from loss of confidentiality, improper use, or loss of integrity). 
+
+For the control of documented information, the organization shall address the following activities, as applicable: 
+
+c) distribution, access, retrieval and use;
+
+d) storage and preservation, including the preservation of legibility;
+
+e) control of changes (e.g. version control); and
+
+f) retention and disposition. 
+
+Documented information of external origin, determined by the organization to be necessary for the planning and operation of the information security management system, shall be identified as appropriate, and controlled.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.8.1","C.8.1","Operation planning and control","OPS-7","fyts7j6t","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=fyts7j6t","The organization shall plan, implement and control the processes needed to meet requirements, and to implement the actions determined in Clause 6, by:
+
+— establishing criteria for the processes;
+
+— implementing control of the processes in accordance with the criteria. 
+
+Documented information shall be available to the extent necessary to have confidence that the processes have been carried out as planned. 
+
+The organization shall control planned changes and review the consequences of unintended changes, taking action to mitigate any adverse effects, as necessary. 
+
+The organization shall ensure that externally provided processes, products or services that are relevant to the information security management system are controlled.","No","OK","SECURITY_OPERATIONS","tibi@moonlet.io"
+"C.8.2","C.8.2","Information security risk assessment","RSK-38","4t917e3g","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=4t917e3g","The organization shall perform information security risk assessments at planned intervals or when significant changes are proposed or occur, taking account of the criteria established in 6.1.2 a). 
+
+The organization shall retain documented information of the results of the information security risk assessments.","No","OK","RISK_MANAGEMENT","adrian@moonlet.io"
+"C.8.3","C.8.3","Information security risk treatment","RSK-39","vumyqh2x","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=vumyqh2x","The organization shall retain documented information of the results of the information security risk treatment.","No","OK","RISK_MANAGEMENT","adrian@moonlet.io"
+"C.9.1","C.9.1","Monitoring, measurement, analysis, and evaluation","GOV-100","8fv4elvv","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=8fv4elvv","The organization shall determine:
+
+a) what needs to be monitored and measured, including information security processes and controls; 
+
+b) the methods for monitoring, measurement, analysis and evaluation, as applicable, to ensure valid results. The methods selected should produce comparable and reproducible results to be considered valid; 
+
+c) when the monitoring and measuring shall be performed; 
+
+d) who shall monitor and measure; 
+
+e) when the results from monitoring and measurement shall be analyzed and evaluated; 
+
+f) who shall analyze and evaluate these results. 
+
+Documented information shall be available as evidence of the results. 
+
+The organization shall evaluate the information security performance and the effectiveness of the information security management system.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.9.2.1","C.9.2.1","Internal Audit - General","CPL-41","7mi2nbsh","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=7mi2nbsh","The organization shall conduct internal audits at planned intervals to provide information on whether the information security management system: 
+
+a) conforms to
+  1) the organization’s own requirements for its information security management system; 
+  2) the requirements of this document;
+
+b) is effectively implemented and maintained.","No","Needs evidence","COMPLIANCE","adrian@moonlet.io"
+"C.9.2.2","C.9.2.2","Internal Audit Program","CPL-42","nqkiqbmz","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=nqkiqbmz","The organization shall plan, establish, implement and maintain an audit programme(s), including the frequency, methods, responsibilities, planning requirements and reporting. 
+
+When establishing the internal audit programme(s), the organization shall consider the importance of the processes concerned and the results of previous audits. 
+
+The organization shall: 
+
+a) define the audit criteria and scope for each audit;
+ 
+b) select auditors and conduct audits that ensure objectivity and the impartiality of the audit process; 
+
+c) ensure that the results of the audits are reported to relevant management; 
+
+Documented information shall be available as evidence of the implementation of the audit programme(s) and the audit results.","No","Needs evidence","COMPLIANCE","adrian@moonlet.io"
+"C.9.3.1","C.9.3.1","Management review - General","GOV-101","m7cfnwkq","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=m7cfnwkq","Top management shall review the organization's information security management system at planned intervals to ensure its continuing suitability, adequacy and effectiveness.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.9.3.2","C.9.3.2","Management review inputs","GOV-102","steival4","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=steival4","The management review shall include consideration of: 
+
+a) the status of actions from previous management reviews; 
+
+b) changes in external and internal issues that are relevant to the information security management system; 
+
+c) changes in needs and expectations of interested parties that are relevant to the information security management system; 
+
+d) feedback on the information security performance, including trends in: 
+  1) nonconformities and corrective actions;
+  2) monitoring and measurement results;
+  3) audit results; 
+  4) fulfilment of information security objectives;
+
+e) feedback from interested parties;
+
+f) results of risk assessment and status of risk treatment plan; 
+
+g) opportunities for continual improvement.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.9.3.3","C.9.3.3","Management review results","GOV-103","u7dltb40","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=u7dltb40","The results of the management review shall include decisions related to continual improvement opportunities and any needs for changes to the information security management system.
+
+Documented information shall be available as evidence of the results of management reviews.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.10.1","C.10.1","Continual Improvement","GOV-104","0eyp30mh","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=0eyp30mh","The organization shall continually improve the suitability, adequacy and effectiveness of the information security management system.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"C.10.2","C.10.2","Nonconformity and corrective action","CPL-43","pb10fioj","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=pb10fioj","When a Nonconformity occurs, the organization shall:
+
+a) React to the nonconformity, and as applicable:
+  1) take action to control and correct it;
+  2) deal with the consequences
+
+b) evaluate the need for action to eliminate the causes of nonconformity, in order that it does not recur or occur elsewhere, by;
+  1) reviewing the nonconformity;
+  2) determining the causes of the nonconformity; and
+  3) determining if similar nonconformities exist, or could potentially occur
+
+c) implement any action needed;
+
+d) review the effectiveness of any corrective action taken; and
+
+e) make changes to the information security management system, if necessary. 
+
+Corrective actions shall be appropriate to the effects of the nonconformities encountered.
+
+Documented information shall be available as evidence of:
+
+f) The nature of the nonconformities and any subsequent actions taken,
+
+g) the results of any corrective action.","No","Needs evidence","COMPLIANCE","adrian@moonlet.io"
+"A.5.1","A.5.1","Policies for information security","GOV-105","ihtowh2e","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=ihtowh2e","Information security policy and topic-specific policies shall be defined, approved by management, published, communicated to and acknowledged by relevant personnel and relevant interested parties, and reviewed at planned intervals and if significant changes occur.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"A.5.2","A.5.2","Information security roles and responsibilities","HRS-54","6i8ettoj","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=6i8ettoj","Information security roles and responsibilities shall be defined and allocated according to the organization needs.","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.5.3","A.5.3","Segregation of duties","HRS-55","v4vhjfvh","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=v4vhjfvh","Conflicting duties and conflicting areas of responsibility shall be segregated.","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.5.4","A.5.4","Management responsibilities","GOV-106","69z2hplm","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=69z2hplm","Management shall require all personnel to apply information security in accordance with the established information security policy, topic-specific policies and procedures of the organization.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"A.5.5","A.5.5","Contact with authorities","GOV-107","dm9a5emm","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=dm9a5emm","The organization shall establish and maintain contact with relevant authorities.","No","OK","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"A.5.6","A.5.6","Contact with special interest groups","GOV-108","5sd6imyl","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=5sd6imyl","The organization shall establish and maintain contact with special interest groups or other specialist security forums and professional associations.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"A.5.7","A.5.7","Threat Intelligence","THR-13","mjnl61h4","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=mjnl61h4","Information relating to information security threats shall be collected and analyzed to produce threat intelligence.","No","Needs evidence","THREAT_MANAGEMENT","tibi@moonlet.io"
+"A.5.8","A.5.8","Information security in project management","PRM-14","1lbwjsfo","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=1lbwjsfo","Information security shall be integrated into project management.","No","Needs evidence","PROJECT_RESOURCE_MANAGEMENT","adrian@moonlet.io"
+"A.5.9","A.5.9","Inventory of information and other associated assets","AST-66","duwec37o","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=duwec37o","An inventory of information and other associated assets, including owners, shall be developed and maintained.","No","Needs evidence","ASSET_MANAGEMENT",""
+"A.5.10","A.5.10","Acceptable use of information and other associated assets","DCH-106","425x42p9","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=425x42p9","Rules for the acceptable use and procedures for handling information and other associated assets shall be identified, documented and implemented.","No","OK","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.5.11","A.5.11","Return of assets","AST-67","23wj3sby","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=23wj3sby","Personnel and other interested parties as appropriate shall return all the organization’s assets in their possession upon change or termination of their employment, contract or agreement.","No","Needs evidence","ASSET_MANAGEMENT",""
+"A.5.12","A.5.12","Classification of information","DCH-107","m8r0bfbq","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=m8r0bfbq","Information shall be classified according to the information security needs of the organization based on confidentiality, integrity, availability and relevant interested party requirements.","No","OK","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.5.13","A.5.13","Labelling of information","DCH-108","5qzssew8","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=5qzssew8","An appropriate set of procedures for information labelling shall be developed and implemented in accordance with the information classification scheme adopted by the organization.","No","OK","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.5.14","A.5.14","Information transfer","CRY-91","nogvv3hw","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=nogvv3hw","Information transfer rules, procedures, or agreements shall be in place for all types of transfer facilities within the organization and between the organization and other parties.","No","OK","CRYPTOGRAPHIC_PROTECTIONS","tibi@moonlet.io"
+"A.5.15","A.5.15","Access control","IAC-197","v2ygke7o","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=v2ygke7o","Rules to control physical and logical access to information and other associated assets shall be established and implemented based on business and information security requirements.","No","OK","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.5.16","A.5.16","Identity management","IAC-198","pggqq813","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=pggqq813","The full life cycle of identities shall be managed.","No","OK","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.5.17","A.5.17","Authentication information","IAC-199","5c4gnshh","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=5c4gnshh","Allocation and management of authentication information shall be controlled by a management process, including advising personnel on the appropriate handling of authentication information.","No","OK","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.5.18","A.5.18","Access rights","IAC-200","xtd1rde4","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=xtd1rde4","Access rights to information and other associated assets shall be provisioned, reviewed, modified and removed in accordance with the organization’s topic-specific policy on and rules for access control.","No","Needs evidence","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.5.19","A.5.19","Information security in supplier relationships","TPM-53","dz91o1f8","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=dz91o1f8","Processes and procedures shall be defined and implemented to manage the information security risks associated with the use of supplier’s products or services.","No","OK","THIRD_PARTY_MANAGEMENT","adrian@moonlet.io"
+"A.5.20","A.5.20","Addressing information security within supplier agreements","IRO-90","v9blvnxj","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=v9blvnxj","Relevant information security requirements shall be established and agreed with each supplier based on the type of supplier relationship.","No","Needs evidence","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.21","A.5.21","Managing information security in the ICT supply chain","TPM-54","69evj2pe","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=69evj2pe","Processes and procedures shall be defined and implemented to manage the information security risks associated with the ICT products and services supply chain.","No","OK","THIRD_PARTY_MANAGEMENT","adrian@moonlet.io"
+"A.5.22","A.5.22","Monitoring, review and change management of supplier services","TPM-55","r7xxjkaz","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=r7xxjkaz","The organization shall regularly monitor, review, evaluate and manage change in supplier information security practices and service delivery.","No","Needs evidence","THIRD_PARTY_MANAGEMENT","adrian@moonlet.io"
+"A.5.23","A.5.23","Information security for use of cloud services","CLD-7","zrx7kjgo","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zrx7kjgo","Processes for acquisition, use, management and exit from cloud services shall be established in accordance with the organization’s information security requirements.","No","OK","CLOUD_SECURITY","tibi@moonlet.io"
+"A.5.24","A.5.24","Information security incident management planning and preparation","IRO-91","lggb5g7c","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=lggb5g7c","The organization shall plan and prepare for managing information security incidents by defining, establishing and communicating information security incident management processes, roles and responsibilities.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.25","A.5.25","Assessment and decision on information security events","IRO-92","tp0kv7ho","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=tp0kv7ho","The organization shall assess information security events and decide if they are to be categorized as information security incidents.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.26","A.5.26","Response to information security incidents","IRO-93","qmodzmvg","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=qmodzmvg","Information security incidents shall be responded to in accordance with the documented procedures.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.27","A.5.27","Learning from information security incidents","IRO-94","47fxwco1","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=47fxwco1","Knowledge gained from information security incidents shall be used to strengthen and improve the information security controls.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.28","A.5.28","Collection of evidence","IRO-95","2qki93x0","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=2qki93x0","The organization shall establish and implement procedures for the identification, collection, acquisition and preservation of evidence related to information security events.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.29","A.5.29","Information security during disruption","IRO-96","x14j0x47","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=x14j0x47","The organization shall plan how to maintain information security at an appropriate level during disruption.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.5.30","A.5.30","ICT readiness for business continuity","BCD-68","9t2qdzle","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=9t2qdzle","ICT readiness shall be planned, implemented, maintained and tested based on business continuity objectives and ICT continuity requirements.","No","OK","BUSINESS_CONTINUITY_DISASTER_RECOVERY",""
+"A.5.31","A.5.31","Legal, statutory, regulatory and contractual requirements","CPL-44","p87muahm","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=p87muahm","Legal, statutory, regulatory and contractual requirements relevant to information security and the organization’s approach to meet these requirements shall be identified, documented and kept up to date.","No","OK","COMPLIANCE","adrian@moonlet.io"
+"A.5.32","A.5.32","Intellectual property rights","AST-68","gonqt473","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=gonqt473","The organization shall implement appropriate procedures to protect intellectual property rights.","No","OK","ASSET_MANAGEMENT",""
+"A.5.33","A.5.33","Protection of records","DCH-109","mtbrd5ny","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=mtbrd5ny","Records shall be protected from loss, destruction, falsification, unauthorized access and unauthorized release.","No","OK","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.5.34","A.5.34","Privacy and protection of PII","PRI-224","zz8z506w","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zz8z506w","The organization shall identify and meet the requirements regarding the preservation of privacy and protection of PII according to applicable laws and regulations and contractual requirements.","No","OK","PRIVACY","adrian@moonlet.io"
+"A.5.35","A.5.35","Independent review of information security","CPL-45","7pn1c8nr","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=7pn1c8nr","The organization’s approach to managing information security and its implementation including people, processes and technologies shall be reviewed independently at planned intervals, or when significant changes occur.","No","Needs evidence","COMPLIANCE","adrian@moonlet.io"
+"A.5.36","A.5.36","Compliance with policies, rules and standards for information security","CPL-46","9yz4l6l3","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=9yz4l6l3","Compliance with the organization’s information security policy, topic-specific policies, rules and standards shall be regularly reviewed.","No","Needs evidence","COMPLIANCE","adrian@moonlet.io"
+"A.5.37","A.5.37","Documented operating procedures","GOV-109","o9q0idpd","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=o9q0idpd","Operating procedures for information processing facilities shall be documented and made available to personnel who need them.","No","Needs evidence","SECURITY_PRIVACY_GOVERNANCE","tibi@moonlet.io"
+"A.6.1","A.6.1","Screening","HRS-56","i9up48pp","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=i9up48pp","Background verification checks on all candidates to become personnel shall be carried out prior to joining the organization and on an ongoing basis taking into consideration applicable laws, regulations and ethics and be proportional to the business requirements, the classification of the information to be accessed and the perceived risks.","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.6.2","A.6.2","Terms and conditions of employment","HRS-57","erq8anhq","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=erq8anhq","The employment contractual agreements shall state the personnel’s and the organization’s responsibilities for information security.","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.6.3","A.6.3","Information security awareness, education and training","SAT-44","h46r2403","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=h46r2403","Personnel of the organization and relevant interested parties shall receive appropriate information security awareness, education and training and regular updates of the organization's information security policy, topic-specific policies and procedures, as relevant for their job function.","No","OK","SECURITY_AWARENESS_TRAINING","adrian@moonlet.io"
+"A.6.4","A.6.4","Disciplinary process","HRS-58","zn5t4xav","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zn5t4xav","A disciplinary process shall be formalized and communicated to take actions against personnel and other relevant interested parties who have committed an information security policy violation","No","OK","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.6.5","A.6.5","Responsibilities after termination or change of employment","HRS-59","15al5zi7","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=15al5zi7","Information security responsibilities and duties that remain valid after termination or change of employment shall be defined, enforced and communicated to relevant personnel and other interested parties.","No","Needs evidence","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.6.6","A.6.6","Confidentiality or non-disclosure agreements","HRS-60","uxoiizoh","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=uxoiizoh","Confidentiality or non-disclosure agreements reflecting the organization’s needs for the protection of information shall be identified, documented, regularly reviewed and signed by personnel and other relevant interested parties.","No","Needs evidence","HUMAN_RESOURCES_SECURITY","adrian@moonlet.io"
+"A.6.7","A.6.7","Remote working","NET-90","wka7s1yw","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=wka7s1yw","Security measures shall be implemented when personnel are working remotely to protect information accessed, processed or stored outside the organization’s premises.","No","OK","NETWORK_SECURITY","tibi@moonlet.io"
+"A.6.8","A.6.8","Information security event reporting","IRO-97","qgkw4h74","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=qgkw4h74","The organization shall provide a mechanism for personnel to report observed or suspected information security events through appropriate channels in a timely manner.","No","OK","INCIDENT_RESPONSE","adrian@moonlet.io"
+"A.7.1","A.7.1","Physical security perimeters","PES-72","c6wnclbs","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=c6wnclbs","Security perimeters shall be defined and used to protect areas that contain information and other associated assets.","No","OK","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.2","A.7.2","Physical entry","PES-73","c3wvywmg","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=c3wvywmg","Secure areas shall be protected by appropriate entry controls and access points.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.3","A.7.3","Securing offices, rooms and facilities","PES-74","iyo5i9sf","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=iyo5i9sf","Physical security for offices, rooms and facilities shall be designed and implemented.","No","OK","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.4","A.7.4","Physical security monitoring","PES-75","uzqttoz9","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=uzqttoz9","Premises shall be continuously monitored for unauthorized physical access.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.5","A.7.5","Protecting against physical and environmental threats","PES-76","u1ru3pvv","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=u1ru3pvv","Protection against physical and environmental threats, such as natural disasters and other intentional or unintentional physical threats to infrastructure shall be designed and implemented.","No","OK","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.6","A.7.6","Working in secure areas","PES-77","o3chwj8e","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=o3chwj8e","Security measures for working in secure areas shall be designed and implemented.","No","OK","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.7","A.7.7","Clear desk and clear screen","PES-78","35g7wvxd","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=35g7wvxd","Clear desk rules for papers and removable storage media and clear screen rules for information processing facilities shall be defined and appropriately enforced.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.8","A.7.8","Equipment siting and protection","PES-79","ayjqf12w","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=ayjqf12w","Equipment shall be sited securely and protected.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.9","A.7.9","Security of assets off-premises","AST-69","dzm2dexq","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=dzm2dexq","Off-site assets shall be protected.","No","Needs evidence","ASSET_MANAGEMENT",""
+"A.7.10","A.7.10","Storage media","AST-70","rol0zubt","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=rol0zubt","Storage media shall be managed through their life cycle of acquisition, use, transportation and disposal in accordance with the organization’s classification scheme and handling requirements.","No","Needs evidence","ASSET_MANAGEMENT",""
+"A.7.11","A.7.11","Supporting utilities","PES-80","qi6b6cr1","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=qi6b6cr1","Information processing facilities shall be protected from power failures and other disruptions caused by failures in supporting utilities.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.12","A.7.12","Cabling security","PES-81","yfm63ole","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=yfm63ole","Cables carrying power, data or supporting information services shall be protected from interception, interference or damage.","No","Needs evidence","PHYSICAL_ENVIRONMENTAL_SECURITY","adrian@moonlet.io"
+"A.7.13","A.7.13","Equipment maintenance","MNT-21","wuteta96","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=wuteta96","Equipment shall be maintained correctly to ensure availability, integrity and confidentiality of information.","No","Needs evidence","MAINTENANCE","adrian@moonlet.io"
+"A.7.14","A.7.14","Secure disposal or re-use of equipment","AST-71","2yosmk08","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=2yosmk08","Items of equipment containing storage media shall be verified to ensure that any sensitive data and licensed software has been removed or securely overwritten prior to disposal or re-use.","No","Needs evidence","ASSET_MANAGEMENT",""
+"A.8.1","A.8.1","User endpoint devices","END-40","2zhexo15","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=2zhexo15","Information stored on, processed by or accessible via user endpoint devices shall be protected.","No","Needs evidence","ENDPOINT_SECURITY","tibi@moonlet.io"
+"A.8.2","A.8.2","Privileged access rights","IAC-201","zxjp1hkl","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zxjp1hkl","The allocation and use of privileged access rights shall be restricted and managed.","No","Needs evidence","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.8.3","A.8.3","Information access restriction","IAC-202","mwwihowm","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=mwwihowm","Access to information and other associated assets shall be restricted in accordance with the established topic-specific policy on access control.","No","Needs evidence","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.8.4","A.8.4","Access to source code","TDA-37","axwe26mw","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=axwe26mw","Read and write access to source code, development tools and software libraries shall be appropriately managed.","No","Needs evidence","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.5","A.8.5","Secure authentication","IAC-203","iubivdgx","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=iubivdgx","Secure authentication technologies and procedures shall be implemented based on information access restrictions and the topic-specific policy on access control.","No","Needs evidence","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.8.6","A.8.6","Capacity management","CAP-7","fpa4156z","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=fpa4156z","The use of resources shall be monitored and adjusted in line with current and expected capacity requirements.","No","Needs evidence","CAPACITY_PERFORMANCE_PLANNING","tibi@moonlet.io"
+"A.8.7","A.8.7","Protection against malware","END-41","4e2usbzc","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=4e2usbzc","Protection against malware shall be implemented and supported by appropriate user awareness.","No","Needs evidence","ENDPOINT_SECURITY","tibi@moonlet.io"
+"A.8.8","A.8.8","Management of technical vulnerabilities","VPM-75","z01cfd6c","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=z01cfd6c","Information about technical vulnerabilities of information systems in use shall be obtained, the organization’s exposure to such vulnerabilities should be evaluated and appropriate measures should be taken.","No","OK","VULNERABILITY_PATCH_MANAGEMENT","tibi@moonlet.io"
+"A.8.9","A.8.9","Configuration management","CFG-44","hrnf9oqw","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=hrnf9oqw","Configurations, including security configurations, of hardware, software, services and networks shall be established, documented, implemented, monitored and reviewed.","No","Needs evidence","CONFIGURATION_MANAGEMENT","tibi@moonlet.io"
+"A.8.10","A.8.10","Information deletion","DCH-110","kt5aajg7","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=kt5aajg7","Information stored in information systems, devices or in any other storage media shall be deleted when no longer required.","No","Needs evidence","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.8.11","A.8.11","Data masking","DCH-111","fjoy8ov9","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=fjoy8ov9","Data masking shall be used in accordance with the organization’s topic-specific policy on access control and other related topic-specific policies, and business requirements, taking applicable legislation into consideration.","No","Needs evidence","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.8.12","A.8.12","Data leakage prevention","DCH-112","zv2sb0to","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=zv2sb0to","Data leakage prevention measures shall be applied to systems, networks and any other devices that process, store or transmit sensitive information.","No","OK","DATA_CLASSIFICATION_HANDLING","tibi@moonlet.io"
+"A.8.13","A.8.13","Information backup","BCD-69","o7ssnlfi","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=o7ssnlfi","Backup copies of information, software and systems shall be maintained and regularly tested in accordance with the agreed topic-specific policy on backup.","No","Needs evidence","BUSINESS_CONTINUITY_DISASTER_RECOVERY",""
+"A.8.14","A.8.14","Redundancy of information processing facilities","BCD-70","oufs0z8u","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=oufs0z8u","Information processing facilities shall be implemented with redundancy sufficient to meet availability requirements.","No","Needs evidence","BUSINESS_CONTINUITY_DISASTER_RECOVERY",""
+"A.8.15","A.8.15","Logging","MON-120","3osnyf10","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=3osnyf10","Logs that record activities, exceptions, faults and other relevant events shall be produced, stored, protected and analysed.","No","Needs evidence","CONTINUOUS_MONITORING","tibi@moonlet.io"
+"A.8.16","A.8.16","Monitoring activities","MON-121","i7xairas","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=i7xairas","Networks, systems and applications shall be monitored for anomalous behaviour and appropriate actions taken to evaluate potential information security incidents.","No","Needs evidence","CONTINUOUS_MONITORING","tibi@moonlet.io"
+"A.8.17","A.8.17","Clock synchronization","SEA-54","puuo9pwr","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=puuo9pwr","The clocks of information processing systems used by the organization shall be synchronized to approved time sources.","No","OK","SECURE_ENGINEERING_ARCHITECTURE","tibi@moonlet.io"
+"A.8.18","A.8.18","Use of privileged utility programs","IAC-204","5o51jc7h","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=5o51jc7h","The use of utility programs that can be capable of overriding system and application controls shall be restricted and tightly controlled.","No","Needs evidence","IDENTIFICATION_AUTHENTICATION","adrian@moonlet.io"
+"A.8.19","A.8.19","Installation of software on operational systems","CHG-38","voxc3tc6","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=voxc3tc6","Procedures and measures shall be implemented to securely manage software installation on operational systems.","No","Needs evidence","CHANGE_MANAGEMENT","adrian@moonlet.io"
+"A.8.20","A.8.20","Networks security","NET-91","jqyhc6kq","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=jqyhc6kq","Networks and network devices shall be secured, managed and controlled to protect information in systems and applications.","No","Needs evidence","NETWORK_SECURITY","tibi@moonlet.io"
+"A.8.21","A.8.21","Security of network services","NET-92","z58ieqyf","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=z58ieqyf","Security mechanisms, service levels and service requirements of network services shall be identified, implemented and monitored.","No","OK","NETWORK_SECURITY","tibi@moonlet.io"
+"A.8.22","A.8.22","Segregation of networks","NET-93","k3eilu6n","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=k3eilu6n","Groups of information services, users and information systems shall be segregated in the organization’s networks.","No","OK","NETWORK_SECURITY","tibi@moonlet.io"
+"A.8.23","A.8.23","Web filtering","NET-94","4syp5hfe","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=4syp5hfe","Access to external websites shall be managed to reduce exposure to malicious content.","No","Needs evidence","NETWORK_SECURITY","tibi@moonlet.io"
+"A.8.24","A.8.24","Use of cryptography","CRY-92","07i98tv1","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=07i98tv1","Rules for the effective use of cryptography, including cryptographic key management, shall be defined and implemented.","No","OK","CRYPTOGRAPHIC_PROTECTIONS","tibi@moonlet.io"
+"A.8.25","A.8.25","Secure development life cycle","TDA-38","c7diea1e","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=c7diea1e","Rules for the secure development of software and systems shall be established and applied.","No","OK","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.26","A.8.26","Application security requirements","SEA-55","m6u2mvnk","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=m6u2mvnk","Information security requirements shall be identified, specified and approved when developing or acquiring applications.","No","OK","SECURE_ENGINEERING_ARCHITECTURE","tibi@moonlet.io"
+"A.8.27","A.8.27","Secure system architecture and engineering principles","SEA-56","27qd09no","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=27qd09no","Principles for engineering secure systems shall be established, documented, maintained and applied to any information system development activities.","No","Needs evidence","SECURE_ENGINEERING_ARCHITECTURE","tibi@moonlet.io"
+"A.8.28","A.8.28","Secure coding","TDA-39","qi8ey5na","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=qi8ey5na","Secure coding principles shall be applied to software development.","No","Needs evidence","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.29","A.8.29","Security testing in development and acceptance","TDA-40","ise32uno","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=ise32uno","Security testing processes shall be defined and implemented in the development life cycle.","No","Needs evidence","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.30","A.8.30","Outsourced development","TPM-56","9phqpcta","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=9phqpcta","The organization shall direct, monitor and review the activities related to outsourced system development.","No","Needs evidence","THIRD_PARTY_MANAGEMENT","adrian@moonlet.io"
+"A.8.31","A.8.31","Separation of development, test and production environments","TDA-41","sbiopz10","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=sbiopz10","Development, testing and production environments shall be separated and secured.","No","Needs evidence","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.32","A.8.32","Change management","CHG-39","sbjgr7xz","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=sbjgr7xz","Changes to information processing facilities and information systems shall be subject to change management procedures.","No","Needs evidence","CHANGE_MANAGEMENT","adrian@moonlet.io"
+"A.8.33","A.8.33","Test information","TDA-42","bqnpwe6c","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=bqnpwe6c","Test information shall be appropriately selected, protected and managed.","No","Needs evidence","TECHNOLOGY_DEVELOPMENT_ACQUISITION","tibi@moonlet.io"
+"A.8.34","A.8.34","Protection of information systems during audit testing","CPL-47","dzsaee29","https://app.eu.vanta.com/frameworks/iso27001_2022?controlId=dzsaee29","Audit tests and other assurance activities involving assessment of operational systems shall be planned and agreed between the tester and appropriate management.","No","OK","COMPLIANCE","adrian@moonlet.io"
