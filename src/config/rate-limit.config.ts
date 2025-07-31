@@ -15,7 +15,7 @@ export const RATE_LIMIT_CONFIG = {
       },
       '/auth/register': {
         windowMs: 15 * 60 * 1000,
-        maxRequests: 3,
+        maxRequests: 100,
         type: 'ip'
       },
       '/auth/refresh': {

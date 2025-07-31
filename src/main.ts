@@ -5,6 +5,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { SanitizePipe } from './common/pipes/sanitize.pipe';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -20,13 +21,16 @@ async function bootstrap() {
     app.useGlobalFilters(new GlobalExceptionFilter());
 
     // Global validation pipe
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true, // Strip properties that don't have decorators
-      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
-      transform: true, // Automatically transform payloads to DTO instances
-      disableErrorMessages: process.env.NODE_ENV === 'production', // Hide validation errors in production
-      validateCustomDecorators: true,
-    }));
+    app.useGlobalPipes(
+      new SanitizePipe(),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        disableErrorMessages: process.env.NODE_ENV === 'production',
+        validateCustomDecorators: true,
+      }),
+    );
 
     // Enable CORS for development
     if (process.env.NODE_ENV !== 'production') {
@@ -59,7 +63,7 @@ async function bootstrap() {
         },
       });
 
-      logger.log('📚 API Documentation available at: http://localhost:3000/api');
+      logger.log('📚 API Documentation available at: http://localhost:5001/api');
     }
 
     // Graceful shutdown
