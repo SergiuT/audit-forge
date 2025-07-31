@@ -12,6 +12,7 @@ import { AWSSecretManagerService } from './services/aws-secret.service';
 import { PdfService } from './services/pdf.service';
 import { GitHubService } from './services/github.service';
 import { GCPService } from './services/gcp.service';
+import { RateLimiterService } from './services/rate-limiter.service';
 
 @Global()
 @Module({
@@ -37,6 +38,9 @@ import { GCPService } from './services/gcp.service';
 
         // Document services
         PdfService,
+
+        // Rate limiting
+        RateLimiterService,
     ],
     exports: [
         // Export all services so they can be used in other modules
@@ -50,6 +54,7 @@ import { GCPService } from './services/gcp.service';
         PdfService,
         GitHubService,
         GCPService,
+        RateLimiterService
     ],
 })
 export class SharedModule { } 

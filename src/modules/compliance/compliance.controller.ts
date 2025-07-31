@@ -21,6 +21,8 @@ import { ProjectAccessGuard } from '../auth/guards/access.guard';
 import { NvdService } from '@/shared/services/nvd.service';
 import { User } from '@/common/decorators/user.decorator';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
+import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
+import { RateLimit } from '@/common/decorators/rate-limit.decorator';
 
 @UseGuards(JwtAuthGuard)
 @Controller('compliance')
@@ -31,6 +33,12 @@ export class ComplianceController {
   ) {}
 
   @Get()
+  @UseGuards(RateLimitGuard)
+  @RateLimit({
+    windowMs: 60 * 1000,
+    maxRequests: 30,
+    type: 'user'
+  })
   async findAll() {
     return this.complianceService.findAll();
   }
@@ -91,6 +99,12 @@ export class ComplianceController {
   }
 
   @Post()
+  @UseGuards(RateLimitGuard)
+  @RateLimit({
+    windowMs: 5 * 60 * 1000,
+    maxRequests: 3,
+    type: 'user'
+  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
@@ -126,6 +140,12 @@ export class ComplianceController {
   }
 
   @Post(':id/summary')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({
+    windowMs: 5 * 60 * 1000,
+    maxRequests: 3,
+    type: 'user'
+  })
   async generateSummary(
     @Param('id') id: number,
     @Query('regenerate') regenerate: string,

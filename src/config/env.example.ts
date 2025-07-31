@@ -19,7 +19,9 @@ export const ENV_EXAMPLE = {
 
     // JWT Authentication
     JWT_SECRET: 'your_super_secret_jwt_key_change_this_in_production',
-    JWT_EXPIRATION: '24h',
+    JWT_EXPIRATION: '15m',
+    JWT_REFRESH_SECRET: 'your_super_secret_refresh_key_change_this_in_production',
+    JWT_REFRESH_EXPIRATION: '7d',
 
     // OpenAI Configuration (REQUIRED)
     OPENAI_API_KEY: 'sk-your-openai-api-key-here',
@@ -38,8 +40,8 @@ export const ENV_EXAMPLE = {
     REDIS_URL: 'redis://localhost:6379',
 
     // Retry Configuration
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 1000,
+    RATE_LIMIT_WINDOW_MS: 60000,
+    RATE_LIMIT_MAX_REQUESTS: 100,
 
     // Integration Specific (Optional)
     GITHUB_CLIENT_ID: 'your_github_client_id',
@@ -51,7 +53,8 @@ export const ENV_EXAMPLE = {
 /**
  * Required Environment Variables:
  * - OPENAI_API_KEY: Required for AI-powered compliance analysis
- * - JWT_SECRET: Required for authentication
+ * - JWT_SECRET: Required for access token signing
+ * - JWT_REFRESH_SECRET: Required for refresh token signing
  * - DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE: Required for database connection
  * 
  * Optional Environment Variables:

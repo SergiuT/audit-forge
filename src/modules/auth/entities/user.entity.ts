@@ -1,8 +1,9 @@
 // src/modules/auth/entities/user.entity.ts
-import { Integration } from '@/modules/integrations/entities/integration.entity';
-import { Project } from '@/modules/project/entities/project.entity';
-import { Exclude } from 'class-transformer';
 import { Entity, PrimaryGeneratedColumn, Column, BaseEntity, ManyToMany, JoinTable, OneToMany } from 'typeorm';
+import { Exclude } from 'class-transformer';
+import { Project } from '@/modules/project/entities/project.entity';
+import { Integration } from '@/modules/integrations/entities/integration.entity';
+import { RefreshToken } from './refresh-token.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -33,4 +34,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Integration, (integration) => integration.user)
   integrations: Integration[];
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 }

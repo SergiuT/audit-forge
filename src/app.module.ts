@@ -2,12 +2,10 @@ import 'dotenv/config';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './modules/auth/entities/user.entity';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { JwtStrategy } from './modules/auth/strategies/jwt.strategy';
 import { validate } from './config/env.config';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { FindingsModule } from './modules/findings/findings.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
@@ -16,6 +14,9 @@ import { AuditTrailModule } from './modules/audit-trail/audit.module';
 import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthController } from './common/controllers/health.controller';
+import { RateLimiterService } from './shared/services/rate-limiter.service';
+import { RateLimitGuard } from './common/guards/rate-limit.guard';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -26,17 +27,7 @@ import { HealthController } from './common/controllers/health.controller';
       validate
     }),
 
-    // Rate limiting
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          ttl: 60000, // 1 minute
-          limit: 100, // Increased limit for better UX
-        },
-      ],
-    }),
-
-    // Database configuration with improved settings
+    // Database configuration
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -82,7 +73,17 @@ import { HealthController } from './common/controllers/health.controller';
     HealthController, // Global health check endpoints
   ],
   providers: [
-    JwtStrategy
+    JwtStrategy,
+    RateLimiterService,
+    RateLimitGuard,
+    Reflector,
+    {
+      provide: APP_GUARD,
+      useClass: RateLimitGuard,
+    }
   ],
+  exports: [
+    RateLimiterService,
+  ]
 })
 export class AppModule { }

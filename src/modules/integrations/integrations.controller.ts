@@ -10,7 +10,6 @@ import { AWSScanService } from './services/aws-scan.service';
 import { User } from '@/common/decorators/user.decorator';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { validateOAuthState } from '@/shared/utils/oauth-state.util';
 
 @Controller('integrations')
@@ -41,8 +40,6 @@ export class IntegrationsController {
   }
 
   @Get('github/callback')
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
   async githubCallback(
     @Query('code') code: string,
     @Query('state') state: string,
@@ -131,8 +128,6 @@ export class IntegrationsController {
   }
 
   @Get('/gcp/callback')
-  @UseGuards(ThrottlerGuard)
-  @Throttle({ default: { limit: 10, ttl: 60000 } }) // 10 requests per minute
   async gcpCallback(
     @Query('code') code: string,
     @Query('state') state: string,

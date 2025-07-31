@@ -30,6 +30,12 @@ class EnvironmentVariables {
   JWT_EXPIRATION: string;
 
   @IsString()
+  JWT_REFRESH_SECRET: string;
+
+  @IsString()
+  JWT_REFRESH_EXPIRATION: string;
+
+  @IsString()
   @IsOptional()
   AWS_REGION?: string;
 
@@ -66,6 +72,18 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
+  GCP_CLIENT_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  GCP_CLIENT_SECRET?: string;
+
+  @IsString()
+  @IsOptional()
+  GCP_REDIRECT_URI?: string;
+
+  @IsString()
+  @IsOptional()
   REDIS_URL?: string;
 
   @IsBoolean()
@@ -74,11 +92,11 @@ class EnvironmentVariables {
 
   @IsNumber()
   @IsOptional()
-  MAX_RETRIES?: number;
+  RATE_LIMIT_WINDOW_MS?: number;
 
   @IsNumber()
   @IsOptional()
-  RETRY_DELAY?: number;
+  RATE_LIMIT_MAX_REQUESTS?: number;
 }
 
 export function validate(config: Record<string, unknown>) {
@@ -94,6 +112,8 @@ export function validate(config: Record<string, unknown>) {
       DB_DATABASE: process.env.DB_DATABASE || 'compliance_db',
       JWT_SECRET: process.env.JWT_SECRET || 'secret',
       JWT_EXPIRATION: process.env.JWT_EXPIRATION || '1h',
+      JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+      JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION || '7d',
       AWS_REGION: process.env.AWS_REGION,
       AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
       AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
@@ -108,10 +128,13 @@ export function validate(config: Record<string, unknown>) {
       })(),
       OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
       OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
+      GCP_CLIENT_ID: process.env.GCP_CLIENT_ID,
+      GCP_CLIENT_SECRET: process.env.GCP_CLIENT_SECRET,
+      GCP_REDIRECT_URI: process.env.GCP_REDIRECT_URI,
       REDIS_URL: process.env.REDIS_URL,
       ENABLE_CACHING: process.env.ENABLE_CACHING === 'true',
-      MAX_RETRIES: parseInt(process.env.MAX_RETRIES || '3', 10),
-      RETRY_DELAY: parseInt(process.env.RETRY_DELAY || '1000', 10),
+      RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10),
+      RATE_LIMIT_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
     },
     { enableImplicitConversion: true },
   );
