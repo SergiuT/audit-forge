@@ -82,7 +82,7 @@ export class AIAgentService {
         this.indexName = this.configService.get<string>('PINECONE_INDEX_NAME') || 'compliance-agent';
     }
 
-    async processMessage(message: string, context: { projectId?: string } = {}): Promise<string> {
+    async processMessage(message: string, context: { projectId?: string; userId?: string } = {}): Promise<string> {
         this.logger.log(`Processing agent message: ${message}`);
 
         const messages = [
@@ -156,10 +156,10 @@ export class AIAgentService {
         }
     }
 
-    private async executeFunction(name: string, args: any, context: { projectId?: string }): Promise<any> {
+    private async executeFunction(name: string, args: any, context: { projectId?: string; userId?: string }): Promise<any> {
         switch (name) {
             case 'scan_github_compliance':
-                return this.scanGitHubCompliance(args.projectId, args.repos);
+                return this.scanGitHubCompliance(args.projectId, args.repos, context);
 
             case 'search_compliance_controls':
                 return this.searchComplianceControls(args.query, args.topK);
@@ -172,9 +172,14 @@ export class AIAgentService {
         }
     }
 
-    private async scanGitHubCompliance(projectId: string, repos: string[]): Promise<any> {
+    private async scanGitHubCompliance(projectId: string, repos: string[], context: { userId?: string }): Promise<any> {
         try {
-            const userId = '1'; // Hardcoded for now - should come from auth context
+            const userId = context?.userId;
+            
+            if (!userId) {
+                throw new Error('User ID is required for GitHub scanning');
+            }
+
             await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, userId);
 
             return {

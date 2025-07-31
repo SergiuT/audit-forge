@@ -1,5 +1,30 @@
 import { ComplianceFinding } from "@/modules/compliance/entities/compliance-finding.entity";
 
+export interface RequestWithUser extends Request {
+  user: { id: number; email: string; role: string };
+}
+
+export interface AuthenticatedRequest extends Request {
+  user: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
+export interface TokenPayload {
+  sub: number;
+  email: string;
+  role: string;
+  type: 'access' | 'refresh';
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
 export interface ComplianceReportWithExtras {
   id: number;
   userId: number;
@@ -13,6 +38,18 @@ export interface ComplianceReportWithExtras {
   findings: ComplianceFinding[];
   complianceScore: number;
   categoryScores: Record<string, number>;
+}
+
+export enum LockfileEcosystem {
+  NPM = 'npm',
+  YARN = 'yarn',
+  PNPM = 'pnpm'
+}
+
+export enum DependencyType {
+  PROD = 'prod',
+  DEV = 'dev',
+  PEER = 'peer'
 }
 
 export enum SeverityOptions {
@@ -43,8 +80,4 @@ export interface ComplianceFindingResult {
   category: string;
   tags: string[];
   mappedControls: string[];
-}
-
-export interface RequestWithUser extends Request {
-  user: { id: number; email: string; role: string };
 }

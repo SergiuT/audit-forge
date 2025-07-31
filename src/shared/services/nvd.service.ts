@@ -19,9 +19,6 @@ export class NvdService {
     @InjectRepository(ComplianceRule)
     private ruleRepo: Repository<ComplianceRule>,
 
-    @InjectRepository(ControlTopic)
-    private topicRepository: Repository<ControlTopic>,
-
     private readonly openaiService: OpenAIService
   ) {}
 
@@ -38,8 +35,6 @@ export class NvdService {
     const pageSize = 200;
     let totalResults = 290000;
     let inserted = 0;
-
-    let topics = await this.topicRepository.find();
   
     while (startIndex < totalResults) {
       const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=${pageSize}&startIndex=${startIndex}`;
@@ -96,22 +91,10 @@ export class NvdService {
               },
             },
           });
-  
-          const embedding = await this.openaiService.getEmbedding(description);
-          const scored = topics
-            .map((topic) => ({
-              slug: topic.slug,
-              score: cosineSimilarity(topic.embedding, embedding),
-            }))
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 3);
-          
-          rule.embedding = embedding;
-          rule.topicTags = scored.map((s) => s.slug);
       
-            await this.ruleRepo.save(rule);
-            inserted++;
-          }
+          await this.ruleRepo.save(rule);
+          inserted++;
+        }
       } catch (error) {
         this.logger.error(`Failed to fetch NVD data at startIndex ${startIndex}: ${error.message}`);
         await this.delay(10000);

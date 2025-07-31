@@ -17,6 +17,9 @@ import { IntegrationsService } from "../integrations.service";
 import { ComplianceService } from "@/modules/compliance/compliance.service";
 import { AuditTrailService } from "@/modules/audit-trail/audit.service";
 import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
+import { RetryService } from "@/shared/services/retry.service";
+import { CircuitBreakerService } from "@/shared/services/circuit-breaker.service";
+import { createOAuthState } from "@/shared/utils/oauth-state.util";
 
 const pipeline = promisify(stream.pipeline);
 
@@ -34,7 +37,40 @@ export class GithubScanService {
     private readonly awsSecretManagerService: AWSSecretManagerService,
     private configService: ConfigService,
     private readonly auditTrailService: AuditTrailService,
-  ) { }
+    private readonly retryService: RetryService,
+    private readonly circuitBreakerService: CircuitBreakerService,
+) { }
+
+  async generateAuthUrl(projectId: string, userId: string): Promise<{ authUrl: string }> {
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        'github-generate-auth-url',
+        async () => {
+          const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+          const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+
+          if (!clientId || !redirectUri) {
+            throw new BadRequestException('GitHub OAuth credentials not configured');
+          }
+
+          const state = createOAuthState(userId, projectId, true);
+
+          // Manual URL construction with proper encoding
+          const params = new URLSearchParams({
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            state: state,
+            scope: 'repo,workflow'
+          });
+
+          const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+          return { authUrl };
+        }
+      ),
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
+    });
+  }
 
   async createOrUpdateGitHubIntegration(token: string, userId: string, projectId: string): Promise<Integration> {
     const githubUser = await this.githubService.getUserInfo(token);
@@ -171,6 +207,7 @@ export class GithubScanService {
           });
         } catch (err) {
           this.logger.warn(`Failed to process run ${run.id} for ${project.externalId}`, err);
+          continue;
         }
       }
 
@@ -241,6 +278,7 @@ export class GithubScanService {
 
       const mergedLogs = buffers.join('\n');
 
+      this.logger.log('Merged logs', mergedLogs, null, 4);
       // Simulate uploaded .txt file using a Buffer
       const fakeFile: Express.Multer.File = {
         fieldname: 'file',

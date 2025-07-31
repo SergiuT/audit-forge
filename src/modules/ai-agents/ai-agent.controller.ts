@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Query, Logger } from '@nestjs/common';
 import { AIAgentService } from './ai-agent.service';
+import { User } from '@/common/decorators/user.decorator';
 
 interface ChatRequest {
     message: string;
@@ -18,12 +19,12 @@ export class AIAgentController {
     constructor(private readonly aiAgentService: AIAgentService) { }
 
     @Post('chat')
-    async chat(@Body() request: ChatRequest): Promise<ChatResponse> {
+    async chat(@Body() request: ChatRequest, @User('id') userId: string): Promise<ChatResponse> {
         this.logger.log(`Agent chat request: ${request.message}`);
 
         const response = await this.aiAgentService.processMessage(
             request.message,
-            { projectId: request.projectId }
+            { projectId: request.projectId, userId }
         );
 
         return {

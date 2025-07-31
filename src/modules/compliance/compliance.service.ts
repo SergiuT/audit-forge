@@ -374,7 +374,9 @@ export class ComplianceService {
     if (filters.cveId) qb.andWhere('rule.cveId = :cveId', { cveId: filters.cveId });
     if (filters.fromDate) qb.andWhere('rule.metadata->>\'publishedDate\' >= :fromDate', { fromDate: filters.fromDate });
     if (filters.toDate) qb.andWhere('rule.metadata->>\'publishedDate\' <= :toDate', { toDate: filters.toDate });
-  
+    if (filters.page) qb.skip((filters.page - 1) * (filters.limit || 10));
+    if (filters.limit) qb.take(filters.limit);
+
     return qb.getMany();
   }
 
@@ -430,38 +432,45 @@ export class ComplianceService {
   }
 
   async evaluateComplianceFromContent(logContent: string): Promise<ComplianceFindingResult[]> {
-    const rules = await this.ruleRepository.find();
     const findings: ComplianceFindingResult[] = [];
-
-
-    this.logger.log(JSON.stringify(logContent, null, 4));
-    // this.logger.log(`Evaluating compliance for content: ${rules}`);
-    for (const rule of rules) {
-      if (!rule.pattern) continue;
-
-      try {
-        // const regex = parseRegexFromString(rule.pattern);
-        const regex = new RegExp(rule.pattern, 'gi');
-        const matches = logContent.match(regex);
-
-        // this.logger.log(`Evaluating rule: ${rule.rule} with pattern: ${regex}`);
-        if (matches) {
-          findings.push({
-            rule: rule.rule,
-            description: rule.description,
-            severity: rule.severity as SeverityOptions,
-            category: rule.category,
-            tags: rule.tags || [],
-            mappedControls: rule.mappedControls || [],
-          });
+  
+    const CHUNK_SIZE = 1000;
+    const total = await this.ruleRepository.count({ where: { source: RuleSource.NVD } });
+  
+    for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
+      const chunk = await this.ruleRepository.find({
+        where: { source: RuleSource.NVD },
+        take: CHUNK_SIZE,
+        skip: offset,
+      });
+  
+      for (const rule of chunk) {
+        if (!rule.pattern) continue;
+  
+        try {
+          const regex = new RegExp(rule.pattern, 'gi');
+          const matches = logContent.match(regex);
+          if (matches) {
+            findings.push({
+              rule: rule.rule,
+              description: rule.description,
+              severity: rule.severity.toUpperCase() as SeverityOptions,
+              category: rule.category,
+              tags: rule.tags || [],
+              mappedControls: rule.mappedControls || [],
+            });
+          }
+        } catch (err) {
+          this.logger.warn(`Invalid regex: ${rule.pattern} in rule ${rule.rule}`);
         }
-      } catch (err) {
-        throw new BadRequestException(
-          `Invalid regex pattern in rule ${rule.rule}: ${rule.pattern}`
-        );
       }
     }
-
+  
+    if (findings.length === 0) {
+      this.logger.debug('No regex matches. Using Pinecone fallback...');
+      // return await this.evaluateComplianceFromContentWithPinecone(logContent);
+    }
+  
     return findings;
   }
 
@@ -492,7 +501,6 @@ export class ComplianceService {
     return this.findingRepository.save(enriched);
   }
 
-  // ✅ Update a report
   async update(id: number, updateReportDto: any): Promise<ComplianceReport> {
     const report = await this.findOne(id); // This will throw if not found
 
@@ -500,7 +508,6 @@ export class ComplianceService {
     return this.complianceReportRepository.save(report);
   }
 
-  // ✅ Delete a report
   async delete(id: number): Promise<void> {
     const report = await this.findOne(id); // This will throw if not found
     await this.complianceReportRepository.remove(report);

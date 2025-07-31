@@ -13,223 +13,360 @@ import { AWSSecretManagerService } from "@/shared/services/aws-secret.service";
 import { IntegrationsService } from "../integrations.service";
 import { AuditTrailService } from "@/modules/audit-trail/audit.service";
 import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
+import { OAuth2Client } from 'google-auth-library';
+import { RetryService } from '@/shared/services/retry.service';
+import { CircuitBreakerService } from '@/shared/services/circuit-breaker.service';
+import { createOAuthState } from "@/shared/utils/oauth-state.util";
 
 @Injectable()
 export class GCPScanService {
-    private readonly logger = new Logger(IntegrationsService.name);
-    
-    constructor(
-        @InjectRepository(Integration)
-        private integrationRepository: Repository<Integration>,
-        @InjectRepository(IntegrationProject)
-        private integrationProjectRepository: Repository<IntegrationProject>,
+  private readonly logger = new Logger(IntegrationsService.name);
 
-        private readonly gcpService: GCPService,
-        private readonly awsSecretManagerService: AWSSecretManagerService,
-        private readonly complianceService: ComplianceService,
-        private configService: ConfigService,
-        private readonly auditTrailService: AuditTrailService,
-    ) {}
+  constructor(
+    @InjectRepository(Integration)
+    private integrationRepository: Repository<Integration>,
+    @InjectRepository(IntegrationProject)
+    private integrationProjectRepository: Repository<IntegrationProject>,
 
-    async createOrUpdateGCPIntegration({
-      file,
-      projectId,
-      userId,
-    }: {
-      file: Express.Multer.File;
-      projectId: string;
-      userId: string;
-    }): Promise<Integration> {
-      if (!file) throw new BadRequestException('GCP credentials file is required');
-    
-      const rawCredentials = file.buffer.toString('utf-8');
+    private readonly gcpService: GCPService,
+    private readonly awsSecretManagerService: AWSSecretManagerService,
+    private readonly complianceService: ComplianceService,
+    private configService: ConfigService,
+    private readonly auditTrailService: AuditTrailService,
+    private readonly retryService: RetryService,
+    private readonly circuitBreakerService: CircuitBreakerService,
+  ) { }
+
+  async generateAuthUrl(projectId: string, userId: string): Promise<{ authUrl: string }> {
+    const clientId = this.configService.get<string>('GCP_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GCP_CLIENT_SECRET');
+    const redirectUri = this.configService.get<string>('GCP_REDIRECT_URI');
+
+    if (!clientId || !clientSecret || !redirectUri) {
+      throw new BadRequestException('GCP OAuth credentials not configured');
+    }
+
+    const oauth2Client = new OAuth2Client(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+
+    // Create state object with projectId and userId
+    const state = createOAuthState(userId, projectId, true);
+
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/logging.read',
+        'https://www.googleapis.com/auth/cloudplatformprojects.readonly'
+      ],
+      state,
+      prompt: 'consent' // Force consent to get refresh token
+    });
+
+    return { authUrl };
+  }
+
+  async createOrUpdateGCPIntegrationOAuth({
+    projectId,
+    userId,
+    authorizationCode,
+    redirectUri,
+  }: {
+    projectId: string;
+    userId: string;
+    authorizationCode: string;
+    redirectUri: string;
+  }): Promise<Integration> {
+    const clientId = this.configService.get<string>('GCP_CLIENT_ID');
+    const clientSecret = this.configService.get<string>('GCP_CLIENT_SECRET');
+
+    if (!clientId || !clientSecret) {
+      throw new BadRequestException('GCP OAuth credentials not configured');
+    }
+
+    this.logger.log(`Starting OAuth exchange for user ${userId}, project ${projectId}`);
+    this.logger.log(`Client ID: ${clientId.substring(0, 10)}...`);
+    this.logger.log(`Redirect URI: ${redirectUri}`);
+
+    const oauth2Client = new OAuth2Client(
+      clientId,
+      clientSecret,
+      redirectUri
+    );
+
+    try {
+      this.logger.log('Exchanging authorization code for tokens...');
+      const { tokens } = await oauth2Client.getToken(authorizationCode);
+
+      if (!tokens.access_token) {
+        throw new BadRequestException('Failed to obtain access token');
+      }
+
+      this.logger.log('Successfully obtained access token');
+
+      // Create credentials object similar to service account
+      const credentials = {
+        type: 'authorized_user',
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: tokens.refresh_token,
+        access_token: tokens.access_token,
+        token_type: tokens.token_type,
+        expiry_date: tokens.expiry_date,
+      };
+
+      const credentialsJson = JSON.stringify(credentials);
       let secretRef = '';
       const useManager = this.useAWSSecretsManager();
-    
+
       if (useManager) {
         secretRef = await this.awsSecretManagerService.createSecret(
-          `gcp-${userId}-${Date.now()}`,
-          rawCredentials
+          `gcp-oauth-${userId}-${Date.now()}`,
+          credentialsJson
         );
       } else {
-        secretRef = encrypt(rawCredentials);
+        secretRef = encrypt(credentialsJson);
       }
-    
+
+      this.logger.log('Creating integration record...');
       const integration = await this.integrationRepository.save({
         type: IntegrationType.GCP,
-        name: 'GCP Integration',
+        name: 'GCP OAuth Integration',
         credentials: secretRef,
         useManager,
         projectId,
         userId,
       });
-    
-      const projects = await this.gcpService.getProjects(rawCredentials);
-    
-      for (const project of projects) {
-        await this.integrationProjectRepository.save({
-          type: IntegrationType.GCP,
-          name: project.name,
-          externalId: project.projectId,
-          metadata: {
-            number: project.number,
-            labels: project.labels,
-            state: project.state,
-          },
+
+      this.logger.log('Fetching user GCP projects...');
+
+      // Fetch user's GCP projects for selection
+      try {
+        this.logger.log('Calling gcpService.getProjects with credentials...');
+        const projects = await this.gcpService.getProjects(credentialsJson);
+        this.logger.log(`Found ${projects.length} projects:`, projects);
+
+        if (projects.length > 0) {
+          this.logger.log('Saving integration projects...');
+          for (const project of projects) {
+            this.logger.log(`Processing project: ${project.projectId} - ${project.name}`);
+
+            await this.integrationProjectRepository.save({
+              type: IntegrationType.GCP,
+              name: project.name,
+              externalId: project.projectId,
+              metadata: {
+                number: project.number,
+                labels: project.labels,
+                state: project.state,
+              },
+              integrationId: integration.id,
+            });
+          }
+          this.logger.log(`Successfully saved ${projects.length} integration projects`);
+        } else {
+          this.logger.warn('No GCP projects found for user');
+        }
+      } catch (projectError) {
+        this.logger.error('Failed to fetch GCP projects:', projectError);
+        this.logger.error('Project error details:', {
+          message: projectError.message,
+          stack: projectError.stack,
+          credentialsType: credentials.type,
+          hasAccessToken: !!credentials.access_token,
+          hasRefreshToken: !!credentials.refresh_token
+        });
+
+        // Don't fail the entire integration creation if project fetching fails
+        // The integration is still created and can be used later
+        this.logger.warn('Integration created successfully, but project fetching failed. User can retry later.');
+      }
+
+      this.logger.log('OAuth integration completed successfully');
+      return integration;
+    } catch (error) {
+      this.logger.error('Failed to exchange authorization code for tokens', error);
+      this.logger.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        status: error.status,
+        response: error.response?.data
+      });
+
+      // Provide more specific error message
+      let errorMessage = 'Failed to authenticate with GCP';
+      if (error.message.includes('headers.forEach')) {
+        errorMessage = 'Google Auth Library configuration issue. Please check your OAuth setup.';
+      } else if (error.message.includes('invalid_grant')) {
+        errorMessage = 'Authorization code expired or invalid. Please try the OAuth flow again.';
+      } else if (error.message.includes('redirect_uri_mismatch')) {
+        errorMessage = 'Redirect URI mismatch. Please check your OAuth configuration.';
+      }
+
+      throw new BadRequestException(`${errorMessage}: ${error.message}`);
+    }
+  }
+
+  async scanGCPIntegrationProjects(projectId: string, selectedProjects: string[]) {
+    const integrationProjects = await this.integrationProjectRepository.find({
+      where: {
+        type: IntegrationType.GCP,
+        externalId: In(selectedProjects),
+      },
+      relations: ['integration'],
+    });
+
+    for (const project of integrationProjects) {
+      const { integration } = project;
+      if (!integration || integration.projectId != projectId) continue;
+
+      try {
+        const token = integration.useManager
+          ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
+          : decrypt(integration.credentials);
+
+        // Call your existing log ingestion method
+        await this.processGcpLogs({
+          credentialsJson: token,
+          gcpProjectId: project.externalId,
+          filter: 'resource.type="gce_instance"', // or allow filter override later
+          projectId: +projectId,
+          userId: Number(integration.userId),
+          tokenType: integration.useManager ? 'secretsManager' : 'aes',
           integrationId: integration.id,
         });
-      }
-    
-      return integration;
-    }
-  
-    async scanGCPIntegrationProjects(projectId: string, selectedProjects: string[]) {
-      const integrationProjects = await this.integrationProjectRepository.find({
-        where: {
-          type: IntegrationType.GCP,
-          externalId: In(selectedProjects),
-        },
-        relations: ['integration'],
-      });
-    
-      for (const project of integrationProjects) {
-        const { integration } = project;
-        if (!integration || integration.projectId != projectId) continue;
-    
-        try {
-          const token = integration.useManager
-            ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-            : decrypt(integration.credentials);
-    
-          // Call your existing log ingestion method
-          await this.processGcpLogs({
-            credentialsJson: token,
+
+        await this.auditTrailService.logEvent({
+          userId: Number(integration.userId),
+          projectId: +projectId,
+          action: AuditAction.SCAN_COMPLETED,
+          resourceType: 'IntegrationProject',
+          resourceId: integration.id,
+          metadata: {
+            type: IntegrationType.GCP,
             gcpProjectId: project.externalId,
-            filter: 'resource.type="gce_instance"', // or allow filter override later
-            projectId: +projectId,
-            userId: Number(integration.userId),
-            tokenType: integration.useManager ? 'secretsManager' : 'aes',
-            integrationId: integration.id,
-          });
-
-          await this.auditTrailService.logEvent({
-            userId: Number(integration.userId),
-            projectId: +projectId,
-            action: AuditAction.SCAN_COMPLETED,
-            resourceType: 'IntegrationProject',
-            resourceId: integration.id,
-            metadata: {
-              type: IntegrationType.GCP,
-              gcpProjectId: project.externalId,
-            },
-          });
-    
-          // Update scan metadata
-          project.lastScannedAt = new Date();
-          await this.integrationProjectRepository.save(project);
-        } catch (err) {
-          this.logger.warn(`[GCP] Failed to process project ${project.externalId}`, err);
-        }
-      }
-    }  
-    
-    async processGcpLogs({
-      gcpProjectId,
-      credentialsJson,
-      projectId,
-      filter,
-      userId = 1,
-      tokenType,
-      integrationId,
-      scannedAt = new Date(),
-    }: {
-      gcpProjectId: string;
-      credentialsJson: string;
-      filter: string;
-      projectId: number;
-      userId?: number;
-      integrationId: string;
-      tokenType: 'aes' | 'secretsManager';
-      scannedAt?: Date;
-    }) {
-      const logContent = await this.fetchLogsFromGCP(gcpProjectId, filter, 50, credentialsJson);
-  
-      const filename = `gcp-${Date.now()}.txt`;
-      const fakeFile: Express.Multer.File = {
-        originalname: filename,
-        mimetype: 'text/plain',
-        buffer: Buffer.from(logContent),
-        fieldname: 'file',
-        size: logContent.length,
-        encoding: '7bit',
-        stream: null as any,
-        destination: '',
-        filename: '',
-        path: '',
-      };
-      
-      return this.complianceService.create(
-        {
-          reportData: {
-            description: 'Logs from GCP',
-            details: {
-              source: 'GCP Logs',
-              ingestedAt: new Date().toISOString(),
-              scannedAt,
-              tokenType,
-              integrationId
-            },
           },
-          projectId,
-          userId,
-          status: 'pending',
-          fileDataKey: '', // filled after upload
-        },
-        userId,
-        fakeFile,
-        'gcp-logs',
-      );
-    }
-  
-    async fetchLogsFromGCP(
-      gcpProjectId: string,
-      filter: string,
-      limit = 50,
-      credentialsJson: string
-    ): Promise<string> {
-      const creds = JSON.parse(credentialsJson);
-      const logging = new Logging({
-        projectId: gcpProjectId,
-        credentials: creds,
-      });
-  
-      try {
-        const [entries]: any = await logging.getEntries({
-          filter,
-          pageSize: limit,
-          orderBy: 'timestamp desc',
         });
-        this.logger.log(entries, null, 4);
-        const decodedLogs = await decodeGcpAuditLogs(entries);
-  
-        return decodedLogs.join('\n\n');
+
+        // Update scan metadata
+        project.lastScannedAt = new Date();
+        await this.integrationProjectRepository.save(project);
       } catch (err) {
-        this.logger.error('Failed to fetch logs from GCP', err);
-        throw err;
+        this.logger.warn(`[GCP] Failed to process project ${project.externalId}`, err);
       }
     }
+  }
 
-    private useAWSSecretsManager(): boolean {
-        const region = this.configService.get<string>('AWS_REGION');
-        const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
-        const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-        const enableSecretManager = this.configService.get<string>('ENABLE_SECRETS_MANAGER')
-    
-        return Boolean(
-          region &&
-          accessKeyId &&
-          secretAccessKey &&
-          enableSecretManager === 'true'
-        );
-    }
+  async processGcpLogs({
+    gcpProjectId,
+    credentialsJson,
+    projectId,
+    filter,
+    userId = 1,
+    tokenType,
+    integrationId,
+    scannedAt = new Date(),
+  }: {
+    gcpProjectId: string;
+    credentialsJson: string;
+    filter: string;
+    projectId: number;
+    userId?: number;
+    integrationId: string;
+    tokenType: 'aes' | 'secretsManager';
+    scannedAt?: Date;
+  }) {
+    const logContent = await this.fetchLogsFromGCP(gcpProjectId, filter, 50, credentialsJson);
+
+    const filename = `gcp-${Date.now()}.txt`;
+    const fakeFile: Express.Multer.File = {
+      originalname: filename,
+      mimetype: 'text/plain',
+      buffer: Buffer.from(logContent),
+      fieldname: 'file',
+      size: logContent.length,
+      encoding: '7bit',
+      stream: null as any,
+      destination: '',
+      filename: '',
+      path: '',
+    };
+
+    return this.complianceService.create(
+      {
+        reportData: {
+          description: 'Logs from GCP',
+          details: {
+            source: 'GCP Logs',
+            ingestedAt: new Date().toISOString(),
+            scannedAt,
+            tokenType,
+            integrationId
+          },
+        },
+        projectId,
+        userId,
+        status: 'pending',
+        fileDataKey: '', // filled after upload
+      },
+      userId,
+      fakeFile,
+      'gcp-logs',
+    );
+  }
+
+  async fetchLogsFromGCP(
+    gcpProjectId: string,
+    filter: string,
+    limit = 50,
+    credentialsJson: string
+  ): Promise<string> {
+    const creds = JSON.parse(credentialsJson);
+    const logging = new Logging({
+      projectId: gcpProjectId,
+      credentials: creds,
+    });
+
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        'gcp-fetch-logs',
+        async () => {
+          try {
+            const [entries]: any = await logging.getEntries({
+              // filter,
+              pageSize: limit,
+              orderBy: 'timestamp desc',
+            });
+            const decodedLogs = await decodeGcpAuditLogs(entries);
+
+            this.logger.log('Decoded logs', decodedLogs, null, 4);
+
+            return decodedLogs.join('\n\n');
+          } catch (err) {
+            this.logger.error('Failed to fetch logs from GCP', err);
+            throw err;
+          }
+        }
+      ),
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
+    });
+  }
+
+  private useAWSSecretsManager(): boolean {
+    const region = this.configService.get<string>('AWS_REGION');
+    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
+    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+    const enableSecretManager = this.configService.get<string>('ENABLE_SECRETS_MANAGER')
+
+    return Boolean(
+      region &&
+      accessKeyId &&
+      secretAccessKey &&
+      enableSecretManager === 'true'
+    );
+  }
 }

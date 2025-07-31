@@ -1,4 +1,6 @@
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { RetryService } from './retry.service';
+import { CircuitBreakerService } from './circuit-breaker.service';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Readable } from 'stream';
@@ -11,7 +13,11 @@ export class S3Service {
   private isConfigured: boolean = false;
   private readonly logger = new Logger(S3Service.name);
 
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private configService: ConfigService,
+    private retryService: RetryService,
+    private circuitBreakerService: CircuitBreakerService
+  ) {}
 
   onModuleInit() {
     const region = this.configService.get<string>('AWS_REGION');
@@ -62,37 +68,53 @@ export class S3Service {
   async uploadFile(file: Express.Multer.File, key: string): Promise<string> {
     this.checkS3Configuration();
 
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        's3-upload',
+        async () => {
+          const command = new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+          });
+  
+          await this.s3Client.send(command);
+          return key;
+        }
+      ),
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
-
-    await this.s3Client.send(command);
-    return key;
   }
 
   async getFile(key: string): Promise<Buffer> {
     this.checkS3Configuration();
 
-    const command = new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        's3-download',
+        async () => {
+          const command = new GetObjectCommand({
+            Bucket: this.bucket,
+            Key: key,
+          });
+  
+          const data = await this.s3Client.send(command);
+  
+          const chunks: Buffer[] = [];
+          const stream = data.Body as Readable;
+  
+          for await (const chunk of stream) {
+            chunks.push(chunk);
+          }
+  
+          return Buffer.concat(chunks);
+        }
+      ),
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
-
-    const data = await this.s3Client.send(command);
-
-    // Readable stream, you can use .promise() if you want to wait for the stream to be fully read
-    const chunks: Buffer[] = [];
-    const stream = data.Body as Readable;
-
-    for await (const chunk of stream) {
-      chunks.push(chunk);
-    }
-
-    // Concatenate all chunks into a single buffer
-    return Buffer.concat(chunks);
   }
 
   generateKey(filename: string, prefix = 'compliance-report'): string {
@@ -103,31 +125,45 @@ export class S3Service {
   }
 
   async fetchCloudTrailLogs(prefix: string): Promise<string[]> {
-    const list = await this.s3Client.send(new ListObjectsV2Command({ Bucket: this.bucket, Prefix: prefix }));
-  
-    const logs: string[] = [];
-  
-    for (const obj of list.Contents || []) {
-      const key = obj.Key!;
-      const getCmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-      const response = await this.s3Client.send(getCmd);
-      const stream = response.Body as Readable;
-  
-      const chunks: Uint8Array[] = [];
-  
-      try {
-        const contentStream = key.endsWith('.gz') ? stream.pipe(zlib.createGunzip()) : stream;
-  
-        for await (const chunk of contentStream) {
-          chunks.push(chunk);
+    this.checkS3Configuration();
+
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        's3-list',
+        async () => {
+          const list = await this.s3Client.send(new ListObjectsV2Command({ 
+            Bucket: this.bucket, 
+            Prefix: prefix 
+          }));
+
+          const logs: string[] = [];
+
+          for (const obj of list.Contents || []) {
+            const key = obj.Key!;
+            const getCmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
+            const response = await this.s3Client.send(getCmd);
+            const stream = response.Body as Readable;
+
+            const chunks: Uint8Array[] = [];
+
+            try {
+              const contentStream = key.endsWith('.gz') ? stream.pipe(zlib.createGunzip()) : stream;
+
+              for await (const chunk of contentStream) {
+                chunks.push(chunk);
+              }
+
+              logs.push(Buffer.concat(chunks).toString('utf-8'));
+            } catch (err) {
+              this.logger.error(`Failed to process log file: ${key}`, err);
+            }
+          }
+
+          return logs;
         }
-  
-        logs.push(Buffer.concat(chunks).toString('utf-8'));
-      } catch (err) {
-        this.logger.error(`Failed to process log file: ${key}`, err);
-      }
-    }
-  
-    return logs;
+      ),
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
+    });
   }
 }

@@ -29,6 +29,13 @@ describe('CacheService', () => {
         jest.clearAllMocks();
     });
 
+    afterAll(() => {
+        // Clean up any intervals that might be running
+        jest.clearAllTimers();
+        jest.clearAllMocks();
+        jest.useRealTimers();
+    });
+
     describe('when caching is disabled', () => {
         beforeEach(() => {
             mockConfigService.get.mockReturnValue(false);
@@ -53,8 +60,16 @@ describe('CacheService', () => {
     describe('when caching is enabled', () => {
         beforeEach(() => {
             mockConfigService.get.mockReturnValue(true);
+            // Mock the interval to avoid timeout issues
+            jest.useFakeTimers();
             // Create a new service instance with caching enabled
             service = new CacheService(configService);
+        });
+
+        afterEach(() => {
+            // Clean up any intervals created by the service
+            jest.clearAllTimers();
+            jest.useRealTimers();
         });
 
         it('should store and retrieve values', async () => {
@@ -68,8 +83,8 @@ describe('CacheService', () => {
         it('should return null for expired entries', async () => {
             await service.set('test-key', 'test-value', 0.001); // 1ms TTL
 
-            // Wait for expiration
-            await new Promise(resolve => setTimeout(resolve, 10));
+            // Use fake timers to advance time
+            jest.advanceTimersByTime(10);
 
             const result = await service.get('test-key');
             expect(result).toBeNull();

@@ -72,9 +72,11 @@ export class ComplianceController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('category') category?: string,
-    @Query('cveId') cveId?: string
+    @Query('cveId') cveId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number
   ) {
-    return this.complianceService.getNvdRules({ severity, fromDate, toDate, category, cveId });
+    return this.complianceService.getNvdRules({ severity, fromDate, toDate, category, cveId, page, limit });
   }  
 
   @Get('topics/controls')

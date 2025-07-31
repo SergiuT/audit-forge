@@ -1,10 +1,11 @@
 // modules/compliance/entities/compliance-report.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, BaseEntity, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, BaseEntity, OneToMany, ManyToOne } from 'typeorm';
 import { ComplianceFinding } from './compliance-finding.entity';
 import { ControlChecklistItem } from '@/modules/checklist/entities/control-checklist.entity';
 import { ReportSource } from '@/shared/types/types';
 import { Project } from '@/modules/project/entities/project.entity';
 import { IntegrationProject } from '@/modules/integrations/entities/integration-project.entity';
+import { ScannedDependency } from '@/modules/integrations/entities/scanned-dependency.entity';
 
 @Entity()
 export class ComplianceReport extends BaseEntity {
@@ -43,7 +44,7 @@ export class ComplianceReport extends BaseEntity {
 
   @OneToMany(() => ControlChecklistItem, (item) => item.report)
   checklistItems: ControlChecklistItem[];
-  
+
   @ManyToOne(() => IntegrationProject, project => project.reports, { nullable: true })
   integrationProject: IntegrationProject;
 
@@ -55,6 +56,9 @@ export class ComplianceReport extends BaseEntity {
 
   @ManyToOne(() => Project, (project) => project.reports, { nullable: true })
   project: Project;
+
+  @OneToMany(() => ScannedDependency, (dep) => dep.report)
+  dependencies: ScannedDependency[];
 
   @Column({ type: 'jsonb', nullable: true })
   driftComparison?: {
