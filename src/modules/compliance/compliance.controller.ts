@@ -23,6 +23,7 @@ import { User } from '@/common/decorators/user.decorator';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { RateLimit } from '@/common/decorators/rate-limit.decorator';
+import { SeverityOptions } from '@/shared/types/types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('compliance')
@@ -84,7 +85,8 @@ export class ComplianceController {
     @Query('page') page?: number,
     @Query('limit') limit?: number
   ) {
-    return this.complianceService.getNvdRules({ severity, fromDate, toDate, category, cveId, page, limit });
+    const { rules, pagination } = await this.complianceService.getNvdRules({ severity: severity as SeverityOptions, fromDate, toDate, category, cveId, page, limit });
+    return { rules, pagination };
   }  
 
   @Get('topics/controls')

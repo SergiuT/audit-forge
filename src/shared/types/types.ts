@@ -1,4 +1,5 @@
 import { ComplianceFinding } from "@/modules/compliance/entities/compliance-finding.entity";
+import { ComplianceRule } from "@/modules/compliance/entities/compliance-rule.entity";
 
 export interface RequestWithUser extends Request {
   user: { id: number; email: string; role: string };
@@ -38,6 +39,25 @@ export interface ComplianceReportWithExtras {
   findings: ComplianceFinding[];
   complianceScore: number;
   categoryScores: Record<string, number>;
+}
+
+export interface NvdRulesFilters {
+  severity?: 'critical' | 'high' | 'medium' | 'low';
+  category?: string;
+  cveId?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 export enum LockfileEcosystem {

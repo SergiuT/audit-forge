@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { ComplianceReport } from './entities/compliance-report.entity';
 import { CreateComplianceReportDto } from './dto/create-compliance-report.dto';
 import { S3Service } from '@/shared/services/s3.service';
@@ -24,13 +24,14 @@ import { OpenAIService } from '@/shared/services/openai.service';
 import { PdfService } from '@/shared/services/pdf.service';
 import { ChecklistService } from '../checklist/checklist.service';
 import { ComplianceRule, RuleSource } from './entities/compliance-rule.entity';
-import { ComplianceFindingResult, SeverityOptions } from '@/shared/types/types';
+import { ComplianceFindingResult, NvdRulesFilters, PaginationMeta, SeverityOptions } from '@/shared/types/types';
 import { Project } from '../project/entities/project.entity';
 import { ControlTopic } from './entities/control-topic.entity';
 import { generateDriftComparison } from '@/shared/utils/compliance-drift.util';
 import { AuditTrailService } from '../audit-trail/audit.service';
 import { AuditAction } from '../audit-trail/entities/audit-event.entity';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
+import { CacheService } from '@/shared/services/cache.service';
 
 @Injectable()
 export class ComplianceService {
@@ -59,15 +60,18 @@ export class ComplianceService {
     private readonly pdfService: PdfService,
     private readonly openaiService: OpenAIService,
     private readonly auditTrailService: AuditTrailService,
+    private readonly cacheService: CacheService,
   ) { }
 
   // Get all reports
   async findAll(projectId?: number): Promise<ComplianceReport[]> {
-    if (projectId) {
-      return this.complianceReportRepository.find({ where: { project: { id: projectId } } });
-    }
-
-    return this.complianceReportRepository.find();
+    const cacheKey = projectId ? `reports:project:${projectId}` : 'reports:all';
+    return this.cacheService.getOrSet(cacheKey, () => {
+      if (projectId) {
+        return this.complianceReportRepository.find({ where: { project: { id: projectId } } });
+      }
+      return this.complianceReportRepository.find();
+    }, 1800); // Cache for 30 minutes
   }
 
   // Get a report by ID
@@ -365,19 +369,77 @@ export class ComplianceService {
     return pdfBuffer;
   }
 
-  async getNvdRules(filters: any) {
-    const qb = this.ruleRepository.createQueryBuilder('rule')
-      .where('rule.source = :source', { source: RuleSource.NVD });
+  async getNvdRules(filters: NvdRulesFilters): Promise<{ rules: ComplianceRule[], pagination: PaginationMeta }> {
+    const cacheKey = `nvd_rules:${JSON.stringify(filters)}`;
+    
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const { page = 1, limit = 10, ...queryFilters } = filters;
+        const offset = (page - 1) * limit;
   
-    if (filters.severity) qb.andWhere('rule.severity = :severity', { severity: filters.severity });
-    if (filters.category) qb.andWhere('rule.category = :category', { category: filters.category });
-    if (filters.cveId) qb.andWhere('rule.cveId = :cveId', { cveId: filters.cveId });
-    if (filters.fromDate) qb.andWhere('rule.metadata->>\'publishedDate\' >= :fromDate', { fromDate: filters.fromDate });
-    if (filters.toDate) qb.andWhere('rule.metadata->>\'publishedDate\' <= :toDate', { toDate: filters.toDate });
-    if (filters.page) qb.skip((filters.page - 1) * (filters.limit || 10));
-    if (filters.limit) qb.take(filters.limit);
+        const baseQuery = this.ruleRepository
+          .createQueryBuilder('rule')
+          .where('rule.source = :source', { source: RuleSource.NVD });
+  
+        this.applyNvdFilters(baseQuery, queryFilters);
+  
+        const rules = await baseQuery
+          .orderBy('rule.metadata->>\'publishedDate\'', 'DESC')
+          .skip(offset)
+          .take(limit)
+          .getMany();
+  
+        const countQuery = this.ruleRepository
+          .createQueryBuilder('rule')
+          .where('rule.source = :source', { source: RuleSource.NVD });
+        
+        this.applyNvdFilters(countQuery, queryFilters);
+        const totalCount = await countQuery.getCount();
+  
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalCount / limit);
+        const pagination: PaginationMeta = {
+          page,
+          limit,
+          total: totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        };
+  
+        return { rules, pagination };
+      },
+      3600 // Cache for 1 hour
+    );
+  }
 
-    return qb.getMany();
+  private applyNvdFilters(
+    queryBuilder: SelectQueryBuilder<ComplianceRule>, 
+    filters: Omit<NvdRulesFilters, 'page' | 'limit'>
+  ): void {
+    const filterMap = {
+      severity: 'rule.severity',
+      category: 'rule.category', 
+      cveId: 'rule.cveId',
+      fromDate: 'rule.metadata->>\'publishedDate\'',
+      toDate: 'rule.metadata->>\'publishedDate\''
+    };
+  
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) {
+        const field = filterMap[key as keyof typeof filterMap];
+        if (field) {
+          if (key === 'fromDate') {
+            queryBuilder.andWhere(`${field} >= :${key}`, { [key]: value });
+          } else if (key === 'toDate') {
+            queryBuilder.andWhere(`${field} <= :${key}`, { [key]: value });
+          } else {
+            queryBuilder.andWhere(`${field} = :${key}`, { [key]: value });
+          }
+        }
+      }
+    });
   }
 
   async findOneByRunId(runId: number): Promise<ComplianceReport | null> {
@@ -388,7 +450,9 @@ export class ComplianceService {
   }
 
   async findAllControlTopics(): Promise<ControlTopic[]> {
-    return this.controlTopicRepository.find({ relations: ['controls'] });
+    return this.cacheService.getOrSet('control_topics:all', () => {
+      return this.controlTopicRepository.find({ relations: ['controls'] });
+    }, 7200);
   }
 
   async filterFindings(reportId: number, filters: FilterFindingsDto) {

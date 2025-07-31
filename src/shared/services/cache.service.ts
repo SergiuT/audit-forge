@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import Redis from 'ioredis';
 
 interface CacheEntry {
     value: any;
@@ -11,7 +12,7 @@ interface CacheEntry {
 @Injectable()
 export class CacheService {
     private readonly logger = new Logger(CacheService.name);
-    private readonly memoryCache = new Map<string, CacheEntry>();
+    private readonly redisClient: Redis;
     private readonly isEnabled: boolean;
     private readonly defaultTtl = 3600; // 1 hour in seconds
 
@@ -19,9 +20,12 @@ export class CacheService {
         this.isEnabled = this.configService.get<boolean>('ENABLE_CACHING') || false;
 
         if (this.isEnabled) {
-            this.logger.log('Caching is enabled');
-            // Start cleanup interval for memory cache
-            setInterval(() => this.cleanupExpiredEntries(), 300000); // 5 minutes
+            const redisURL = this.configService.get<string>('REDIS_URL');
+            if (!redisURL) {
+                throw new Error('REDIS_URL is not set');
+            }
+            this.redisClient = new Redis(redisURL);
+            this.logger.log('Redis caching is enabled');
         }
     }
 
@@ -29,19 +33,13 @@ export class CacheService {
         if (!this.isEnabled) return null;
 
         try {
-            const entry = this.memoryCache.get(key);
+            const value = await this.redisClient.get(key);
 
-            if (!entry) {
+            if (!value) {
                 return null;
             }
 
-            if (Date.now() > entry.expiresAt) {
-                this.memoryCache.delete(key);
-                return null;
-            }
-
-            this.logger.debug(`Cache hit for key: ${key}`);
-            return entry.value as T;
+            return JSON.parse(value) as T;
         } catch (error) {
             this.logger.error(`Cache get error for key ${key}:`, error);
             return null;
@@ -52,14 +50,8 @@ export class CacheService {
         if (!this.isEnabled) return;
 
         try {
-            const expiresAt = Date.now() + (ttlSeconds * 1000);
-            const entry: CacheEntry = {
-                value,
-                expiresAt,
-                createdAt: Date.now(),
-            };
-
-            this.memoryCache.set(key, entry);
+            const serializedValue = JSON.stringify(value);
+            await this.redisClient.setex(key, ttlSeconds, serializedValue);
             this.logger.debug(`Cache set for key: ${key}, TTL: ${ttlSeconds}s`);
         } catch (error) {
             this.logger.error(`Cache set error for key ${key}:`, error);
@@ -70,7 +62,7 @@ export class CacheService {
         if (!this.isEnabled) return;
 
         try {
-            this.memoryCache.delete(key);
+            await this.redisClient.del(key);
             this.logger.debug(`Cache deleted for key: ${key}`);
         } catch (error) {
             this.logger.error(`Cache delete error for key ${key}:`, error);
@@ -81,7 +73,7 @@ export class CacheService {
         if (!this.isEnabled) return;
 
         try {
-            this.memoryCache.clear();
+            await this.redisClient.flushdb();
             this.logger.log('Cache cleared');
         } catch (error) {
             this.logger.error('Cache clear error:', error);
@@ -117,36 +109,34 @@ export class CacheService {
     }
 
     // Get cache statistics
-    getStats(): {
+    async getStats(): Promise<{
         enabled: boolean;
         entriesCount: number;
         memoryUsage: string;
-    } {
-        const entriesCount = this.memoryCache.size;
-        const memoryUsage = `${Math.round(JSON.stringify([...this.memoryCache.entries()]).length / 1024)}KB`;
-
-        return {
-            enabled: this.isEnabled,
-            entriesCount,
-            memoryUsage,
-        };
-    }
-
-    private cleanupExpiredEntries(): void {
-        if (!this.isEnabled) return;
-
-        const now = Date.now();
-        let cleanedCount = 0;
-
-        for (const [key, entry] of this.memoryCache.entries()) {
-            if (now > entry.expiresAt) {
-                this.memoryCache.delete(key);
-                cleanedCount++;
-            }
+    }> {
+        if (!this.isEnabled) {
+            return {
+                enabled: false,
+                entriesCount: 0,
+                memoryUsage: '0KB'
+            };
         }
 
-        if (cleanedCount > 0) {
-            this.logger.debug(`Cleaned up ${cleanedCount} expired cache entries`);
+        try {
+            const dbSize = await this.redisClient.dbsize();
+            
+            return {
+                enabled: this.isEnabled,
+                entriesCount: dbSize,
+                memoryUsage: 'Redis managed'
+            };
+        } catch (error) {
+            this.logger.error('Error getting cache stats:', error);
+            return {
+                enabled: this.isEnabled,
+                entriesCount: 0,
+                memoryUsage: 'Error'
+            };
         }
     }
 } 

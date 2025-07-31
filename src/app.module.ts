@@ -42,16 +42,27 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
         logging: configService.get('NODE_ENV') === 'development' ? ['error', 'warn'] : false,
         migrations: ['dist/database/migrations/*{.ts,.js}'],
         migrationsRun: true,
-        // Performance optimizations
+
+        // Connection Pooling Configuration
         extra: {
-          connectionLimit: 10,
-          acquireTimeout: 60000,
-          timeout: 60000,
+          // Pool size configuration
+          max: 20,                    // Maximum number of connections in pool
+          min: 5,                     // Minimum number of connections in pool
+
+          // Connection lifecycle timeouts
+          acquireTimeoutMillis: 30000, // Time to acquire connection (30s)
+          createTimeoutMillis: 30000,  // Time to create new connection (30s)
+          destroyTimeoutMillis: 5000,  // Time to destroy connection (5s)
+          idleTimeoutMillis: 30000,    // Time before idle connection is closed (30s)
+          reapIntervalMillis: 1000,    // How often to check for idle connections (1s)
+
+          // Connection validation
+          validateOnBorrow: true,      // Validate connection before use
+          validateOnReturn: false,     // Don't validate on return (performance)
         },
-        // Connection pooling
-        poolSize: 10,
-        retryAttempts: 3,
-        retryDelay: 3000,
+
+        // SSL configuration (for production)
+        ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
       }),
       inject: [ConfigService],
     }),

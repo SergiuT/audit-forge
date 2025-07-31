@@ -4,10 +4,7 @@ import { ArgumentMetadata, Injectable, PipeTransform } from "@nestjs/common";
 export class SanitizePipe implements PipeTransform
  {
   transform(value: any, metadata: ArgumentMetadata) {
-    console.log(`🔍 SanitizePipe called with: ${JSON.stringify(value)}`);
     if (typeof value === 'string') {
-        const sanitized = this.sanitizeString(value);
-        console.log(`🧹 String sanitized: "${value}" -> "${sanitized}"`);
       return this.sanitizeString(value);
     }
     if (typeof value === 'object') {

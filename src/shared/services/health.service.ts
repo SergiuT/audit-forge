@@ -120,7 +120,7 @@ export class HealthService {
     private async checkCache(): Promise<HealthCheckResult> {
         const start = Date.now();
         try {
-            const stats = this.cacheService.getStats();
+            const stats = await this.cacheService.getStats();
             return {
                 service: 'cache',
                 status: stats.enabled ? 'healthy' : 'degraded',
