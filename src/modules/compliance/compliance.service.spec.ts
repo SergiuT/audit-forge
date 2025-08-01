@@ -13,11 +13,12 @@ import { ChecklistService } from '../checklist/checklist.service';
 import { PdfService } from '@/shared/services/pdf.service';
 import { OpenAIService } from '@/shared/services/openai.service';
 import { AuditTrailService } from '../audit-trail/audit.service';
-import { createTestProject, createTestComplianceReport } from '@/test/setup';
+import { createTestProject, createTestComplianceReport, createTestUser } from '@/test/setup';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SeverityOptions } from '@/shared/types/types';
 import { ComplianceReportService } from './services/compliance-report.service';
 import { ComplianceAnalysisService } from './services/compliance-analysis.service';
+import { In } from 'typeorm';
 
 describe('ComplianceService', () => {
     let service: ComplianceService;
@@ -209,31 +210,33 @@ describe('ComplianceService', () => {
     });
 
     describe('findAll', () => {
+        const user = createTestUser();
         it('should return all compliance reports when no projectId is provided', async () => {
             const mockReports = [createTestComplianceReport(), createTestComplianceReport({ id: 2 })];
             mockComplianceReportRepository.find.mockResolvedValue(mockReports);
 
-            const result = await complianceReportService.findAll();
+            const result = await complianceReportService.findAll(user);
 
             expect(result).toEqual(mockReports);
             expect(mockComplianceReportRepository.find).toHaveBeenCalledWith();
         });
 
         it('should return compliance reports filtered by projectId', async () => {
-            const projectId = 1;
             const mockReports = [createTestComplianceReport()];
             mockComplianceReportRepository.find.mockResolvedValue(mockReports);
 
-            const result = await complianceReportService.findAll(projectId);
+            const result = await complianceReportService.findAll(user);
 
             expect(result).toEqual(mockReports);
             expect(mockComplianceReportRepository.find).toHaveBeenCalledWith({
-                where: { project: { id: projectId } },
+                where: { project: { id: In(user.projects.map(p => p.id)) } },
+                relations: ['findings', 'findings.actions', 'project'],
             });
         });
     });
 
     describe('findOne', () => {
+        const user = createTestUser();
         it('should return a compliance report with findings and file content', async () => {
             const reportId = 1;
             const mockReport = createTestComplianceReport({
@@ -252,7 +255,7 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.findOne.mockResolvedValue(mockReport);
             mockS3Service.getFile.mockResolvedValue(Buffer.from(mockFileContent));
 
-            const result = await complianceReportService.findOne(reportId);
+            const result = await complianceReportService.findOne(reportId, user);
 
             expect(result).toHaveProperty('fileContent', mockFileContent);
             expect(result).toHaveProperty('findings', mockReport.findings);
@@ -268,7 +271,7 @@ describe('ComplianceService', () => {
             const reportId = 999;
             mockComplianceReportRepository.findOne.mockResolvedValue(null);
 
-            await expect(complianceReportService.findOne(reportId)).rejects.toThrow(NotFoundException);
+            await expect(complianceReportService.findOne(reportId, user)).rejects.toThrow(NotFoundException);
             expect(mockComplianceReportRepository.findOne).toHaveBeenCalledWith({
                 where: { id: reportId },
                 relations: ['findings', 'findings.actions', 'project'],
@@ -281,11 +284,12 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.findOne.mockResolvedValue(mockReport);
             mockS3Service.getFile.mockRejectedValue(new Error('S3 error'));
 
-            await expect(complianceReportService.findOne(reportId)).rejects.toThrow(BadRequestException);
+            await expect(complianceReportService.findOne(reportId, user)).rejects.toThrow(BadRequestException);
         });
     });
 
     describe('create', () => {
+        const user = createTestUser();
         it.skip('should create a new compliance report with file upload', async () => {
             const userId = 1;
             const projectId = 1;
@@ -328,7 +332,7 @@ describe('ComplianceService', () => {
             mockFindingRepository.save.mockResolvedValue([]);
             mockActionRepository.save.mockResolvedValue([]);
 
-            const result = await service.create(createReportDto, userId, mockFile);
+            const result = await service.create(createReportDto, mockFile, user);
 
             expect(result).toEqual(mockSavedReport);
             expect(mockS3Service.uploadFile).toHaveBeenCalledWith(mockFile, expect.any(String));
@@ -342,6 +346,7 @@ describe('ComplianceService', () => {
 
         it('should handle file upload errors', async () => {
             const userId = 1;
+            const user = createTestUser();
             const mockFile: Express.Multer.File = {
                 fieldname: 'file',
                 originalname: 'test.txt',
@@ -368,11 +373,12 @@ describe('ComplianceService', () => {
 
             mockS3Service.uploadFile.mockRejectedValue(new Error('Upload failed'));
 
-            await expect(service.create(createReportDto, userId, mockFile)).rejects.toThrow();
+            await expect(service.create(createReportDto, mockFile, user)).rejects.toThrow();
         });
     });
 
     describe('generateSummary', () => {
+        const user = createTestUser();
         it('should generate AI summary for a compliance report', async () => {
             const reportId = 1;
             const tone = 'executive';
@@ -393,7 +399,7 @@ describe('ComplianceService', () => {
             mockOpenAIService.generateComplianceSummary.mockResolvedValue(mockSummary);
             mockComplianceReportRepository.save.mockResolvedValue(mockReport);
 
-            const result = await service.generateSummary(reportId, false, tone);
+            const result = await service.generateSummary(reportId, false, tone, user);
 
             expect(result).toEqual({ summary: mockSummary });
             expect(mockOpenAIService.generateComplianceSummary).toHaveBeenCalledWith(
@@ -403,6 +409,7 @@ describe('ComplianceService', () => {
 
         it('should return cached summary if available and not regenerating', async () => {
             const reportId = 1;
+            const tone = 'executive';
             const mockReport = createTestComplianceReport({
                 aiSummary: 'Cached summary',
                 aiSummaryGeneratedAt: new Date(),
@@ -410,7 +417,7 @@ describe('ComplianceService', () => {
 
             mockComplianceReportRepository.findOne.mockResolvedValue(mockReport);
 
-            const result = await service.generateSummary(reportId, false);
+            const result = await service.generateSummary(reportId, false, tone, user);
 
             expect(result).toEqual({ summary: 'Cached summary' });
             expect(mockOpenAIService.generateComplianceSummary).not.toHaveBeenCalled();
@@ -418,6 +425,7 @@ describe('ComplianceService', () => {
 
         it('should regenerate summary when regenerate flag is true', async () => {
             const reportId = 1;
+            const tone = 'executive';
             const mockReport = createTestComplianceReport({
                 aiSummary: 'Old summary',
                 aiSummaryGeneratedAt: new Date(),
@@ -437,7 +445,7 @@ describe('ComplianceService', () => {
             mockOpenAIService.generateComplianceSummary.mockResolvedValue(newSummary);
             mockComplianceReportRepository.save.mockResolvedValue(mockReport);
 
-            const result = await service.generateSummary(reportId, true);
+            const result = await service.generateSummary(reportId, true, tone, user);
 
             expect(result).toEqual({ summary: newSummary });
             expect(mockOpenAIService.generateComplianceSummary).toHaveBeenCalled();
@@ -445,6 +453,7 @@ describe('ComplianceService', () => {
     });
 
     describe('generatePDF', () => {
+        const user = createTestUser();
         it('should generate PDF for a compliance report', async () => {
             const reportId = 1;
             const mockReport = createTestComplianceReport({
@@ -464,7 +473,7 @@ describe('ComplianceService', () => {
             mockS3Service.getFile.mockResolvedValue(mockFileContent);
             mockPdfService.generateComplianceReport.mockResolvedValue(mockPdfBuffer);
 
-            const result = await service.generatePDF(reportId);
+            const result = await service.generatePDF(reportId, user);
 
             expect(result).toEqual(mockPdfBuffer);
             expect(mockPdfService.generateComplianceReport).toHaveBeenCalledWith(expect.objectContaining({
@@ -477,7 +486,7 @@ describe('ComplianceService', () => {
             const reportId = 999;
             mockComplianceReportRepository.findOne.mockResolvedValue(null);
 
-            await expect(service.generatePDF(reportId)).rejects.toThrow(NotFoundException);
+            await expect(service.generatePDF(reportId, user)).rejects.toThrow(NotFoundException);
         });
     });
 
@@ -517,6 +526,7 @@ describe('ComplianceService', () => {
     });
 
     describe('delete', () => {
+        const user = createTestUser();
         it('should delete a compliance report', async () => {
             const reportId = 1;
             const mockReport = createTestComplianceReport({
@@ -542,19 +552,16 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.delete.mockResolvedValue({ affected: 1 });
             mockS3Service.deleteFile.mockResolvedValue(undefined);
 
-            await service.delete(reportId);
+            await complianceReportService.delete(reportId, user);
 
-            expect(mockComplianceReportRepository.remove).toHaveBeenCalledWith(expect.objectContaining({
-                id: mockReport.id,
-                fileDataKey: mockReport.fileDataKey,
-            }));
+            expect(mockComplianceReportRepository.delete).toHaveBeenCalledWith({ id: reportId, userId: user.id });
         });
 
         it('should throw NotFoundException when report not found', async () => {
             const reportId = 999;
             mockComplianceReportRepository.findOne.mockResolvedValue(null);
 
-            await expect(service.delete(reportId)).rejects.toThrow(NotFoundException);
+            await expect(complianceReportService.delete(reportId, user)).rejects.toThrow(NotFoundException);
         });
     });
 }); 

@@ -25,13 +25,13 @@ export class IntegrationsController {
   ) { }
 
   @Post()
-  async createIntegration(@Body() dto: CreateIntegrationDto) {
-    return this.integrationsService.create(dto);
+  async createIntegration(@Body() dto: CreateIntegrationDto, @User('id') userId: string) {
+    return this.integrationsService.create(dto, Number(userId));
   }
 
   @Get(':id')
-  async getIntegration(@Param('id') id: string) {
-    const integration = await this.integrationsService.getById(id);
+  async getIntegration(@Param('id') id: string, @User() user) {
+    const integration = await this.integrationsService.getById(id, user);
     if (!integration) throw new NotFoundException('Integration not found');
     return integration;
   }
@@ -47,7 +47,7 @@ export class IntegrationsController {
 
       const integration = await this.githubScanService.createOrUpdateGitHubIntegration(
         token,
-        parsedState.userId,
+        Number(parsedState.userId),
         parsedState.projectId,
       );
 
@@ -66,9 +66,9 @@ export class IntegrationsController {
   async scanGithubLogs(
     @Param('projectId') projectId: string,
     @Body('repos') repos: string[],
-    @User('id') userId: string,
+    @User() user,
   ) {
-    await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, userId);
+    await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, user);
     return { message: 'GitHub log scan triggered' };
   }
 
@@ -80,7 +80,7 @@ export class IntegrationsController {
       externalId?: string;
       region?: string;
       projectId: string;
-      userId: string;
+      userId: number;
     },
   ) {
     return this.awsScanService.connectAWSRole({
@@ -89,15 +89,16 @@ export class IntegrationsController {
   }
 
   @Get('projects/:id/scan-history')
-  async getScanHistory(@Param('id') id: string) {
-    return this.integrationsService.getScanHistoryForProject(id);
+  async getScanHistory(@Param('id') id: string, @User() user) {
+    return this.integrationsService.getScanHistoryForProject(id, user);
   }
 
   @Post('/projects/:projectId/aws/scan')
   async scanAwsProjects(
     @Param('projectId') projectId: string,
+    @User() user,
   ) {
-    await this.awsScanService.scanAWSIntegrationProjects(projectId);
+    await this.awsScanService.scanAWSIntegrationProjects(projectId, user);
     return { message: 'AWS scan triggered' };
   }
 
@@ -128,7 +129,7 @@ export class IntegrationsController {
 
       const integration = await this.gcpScanService.createOrUpdateGCPIntegrationOAuth({
         projectId: parsedState.projectId,
-        userId: parsedState.userId,
+        userId: Number(parsedState.userId),
         authorizationCode: code,
         redirectUri: this.configService.get<string>('GCP_REDIRECT_URI') || 'http://localhost:3000/integrations/gcp/callback',
       });
@@ -149,7 +150,7 @@ export class IntegrationsController {
   async connectGCPOAuth(
     @Body() body: {
       projectId: string,
-      userId: string,
+      userId: number,
       authorizationCode: string,
       redirectUri: string
     },
@@ -166,14 +167,15 @@ export class IntegrationsController {
   async scanGcpProjects(
     @Param('projectId') projectId: string,
     @Body('projects') selectedProjects: string[],
+    @User() user,
   ) {
-    await this.gcpScanService.scanGCPIntegrationProjects(projectId, selectedProjects);
+    await this.gcpScanService.scanGCPIntegrationProjects(projectId, selectedProjects, user);
     return { message: 'GCP scan started' };
   }
 
   @Delete('/:id')
-  async deleteIntegration(@Param('id') id: string) {
-    await this.integrationsService.deleteIntegration(id);
+  async deleteIntegration(@Param('id') id: string, @User('id') userId: string) {
+    await this.integrationsService.deleteIntegration(id, Number(userId));
     return { message: `Integration ${id} deleted` };
   }
 }

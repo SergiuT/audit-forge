@@ -1,4 +1,3 @@
-// modules/compliance/compliance.controller.ts
 import {
   Controller,
   Get,
@@ -6,7 +5,6 @@ import {
   Param,
   Body,
   Delete,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
   Query,
@@ -14,19 +12,14 @@ import {
 } from '@nestjs/common';
 import { ComplianceService } from './compliance.service';
 import { CreateComplianceReportDto } from './dto/create-compliance-report.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { ProjectAccessGuard } from '../auth/guards/access.guard';
 import { NvdService } from '@/shared/services/nvd.service';
 import { User } from '@/common/decorators/user.decorator';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
-import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
-import { RateLimit } from '@/common/decorators/rate-limit.decorator';
 import { SeverityOptions } from '@/shared/types/types';
 import { ComplianceReportService } from './services/compliance-report.service';
 
-@UseGuards(JwtAuthGuard)
 @Controller('compliance')
 export class ComplianceController {
   constructor(
@@ -36,25 +29,20 @@ export class ComplianceController {
   ) {}
 
   @Get()
-  @UseGuards(RateLimitGuard)
-  @RateLimit({
-    windowMs: 60 * 1000,
-    maxRequests: 30,
-    type: 'user'
-  })
-  async findAll() {
-    return this.reportService.findAll();
+  async findAll(@User() user) {
+    return this.reportService.findAll(user);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: number) {
-    return this.reportService.findOne(id);
+  async findOne(@Param('id') id: number, @User() user) {
+    return this.reportService.findOne(id, user);
   }
 
   @Get(':id/findings/filter')
   async filterFindings(
     @Param('id') reportId: number,
-    @Query() filters: FilterFindingsDto
+    @Query() filters: FilterFindingsDto,
+    @User() user,
   ) {
     const controlIds = Array.isArray(filters.controlIds)
     ? filters.controlIds
@@ -74,7 +62,7 @@ export class ComplianceController {
       ? [filters.topicTags]
       : [];
 
-    return this.complianceService.filterFindings(reportId, { controlIds, severity: severities, topicTags: tags });
+    return this.complianceService.filterFindings(reportId, { controlIds, severity: severities, topicTags: tags }, user);
   }
 
   @Get('rules/nvd')
@@ -87,7 +75,7 @@ export class ComplianceController {
     @Query('page') page?: number,
     @Query('limit') limit?: number
   ) {
-    const { rules, pagination } = await this.complianceService.getNvdRules({ severity: severity as SeverityOptions, fromDate, toDate, category, cveId, page, limit });
+    const { rules, pagination } = await this.nvdService.getNvdRules({ severity: severity as SeverityOptions, fromDate, toDate, category, cveId, page, limit });
     return { rules, pagination };
   }  
 
@@ -103,12 +91,6 @@ export class ComplianceController {
   }
 
   @Post()
-  @UseGuards(RateLimitGuard)
-  @RateLimit({
-    windowMs: 5 * 60 * 1000,
-    maxRequests: 3,
-    type: 'user'
-  })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
@@ -123,17 +105,17 @@ export class ComplianceController {
   async createCompliance(
     @Body() createComplianceReportDto: CreateComplianceReportDto,
     @UploadedFile() file: Express.Multer.File,
-    @User('id') userId: string
+    @User() user
   ) {
     if (!file) {
       throw new Error('File is required');
     }
-    return this.complianceService.create(createComplianceReportDto, Number(userId), file);
+    return this.complianceService.create(createComplianceReportDto, file, user, undefined);
   }
 
   @Get(':id/export-pdf')
-  async exportPdf(@Param('id') id: number, @Res() res: Response) {
-    const pdf = await this.complianceService.generatePDF(id);
+  async exportPdf(@Param('id') id: number, @Res() res: Response, @User() user) {
+    const pdf = await this.complianceService.generatePDF(id, user);
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -144,34 +126,28 @@ export class ComplianceController {
   }
 
   @Post(':id/summary')
-  @UseGuards(RateLimitGuard)
-  @RateLimit({
-    windowMs: 5 * 60 * 1000,
-    maxRequests: 3,
-    type: 'user'
-  })
   async generateSummary(
     @Param('id') id: number,
     @Query('regenerate') regenerate: string,
     @Query('tone') tone: 'executive' | 'technical' | 'remediation' | 'educational' | undefined,
+    @User() user,
   ) {
     const shouldRegenerate = regenerate === 'true';
-    return this.complianceService.generateSummary(id, shouldRegenerate, tone);
+    return this.complianceService.generateSummary(id, shouldRegenerate, tone, user);
   }
 
-  @UseGuards(ProjectAccessGuard)
   @Get('project/:projectId/reports')
   findReportsByProject(@Param('projectId') projectId: number) {
     return this.complianceService.getReportsForProject(projectId);
   }
 
   @Post(':id')
-  async update(@Param('id') id: number, @Body() updateReportDto: any) {
-    return this.complianceService.update(id, updateReportDto);
+  async update(@Param('id') id: number, @Body() updateReportDto: any, @User() user) {
+    return this.reportService.update(id, updateReportDto, user);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: number) {
-    return this.complianceService.delete(id);
+  async remove(@Param('id') id: number, @User() user) {
+    return this.reportService.delete(id, user);
   }
 }

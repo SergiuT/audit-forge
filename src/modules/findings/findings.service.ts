@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ComplianceFinding } from '../compliance/entities/compliance-finding.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { OpenAIService } from '@/shared/services/openai.service';
 import { TagExplanation } from './entities/tag-explanation.entity';
 import { ComplianceControl } from '../compliance/entities/compliance-control.entity';
@@ -10,6 +10,7 @@ import {
   ChecklistStatus,
   ControlChecklistItem,
 } from '../checklist/entities/control-checklist.entity';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class FindingsService {
@@ -33,9 +34,9 @@ export class FindingsService {
   ) {}
 
   // Get findings for report
-  async getFindingsForReport(reportId: number): Promise<ComplianceFinding[]> {
+  async getFindingsForReport(reportId: number, user: User): Promise<ComplianceFinding[]> {
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
       relations: ['actions', 'report'],
     });
 
@@ -52,7 +53,7 @@ export class FindingsService {
   }
 
   // Get findings by tags
-  async findFindingsByTags(filters: {
+  async findFindingsByTags(user: User, filters: {
     severity?: string;
     category?: string;
     tags?: string[];
@@ -61,7 +62,8 @@ export class FindingsService {
     const qb = this.findingRepository
       .createQueryBuilder('finding')
       .leftJoinAndSelect('finding.actions', 'actions')
-      .leftJoinAndSelect('finding.report', 'report');
+      .leftJoinAndSelect('finding.report', 'report')
+      .where('finding.projectId IN (:...projectIds)', { projectIds: user.projects.map(p => p.id) });
 
     if (filters.severity) {
       qb.andWhere('finding.severity = :severity', { severity: filters.severity });
@@ -95,8 +97,10 @@ export class FindingsService {
   }
 
   // Get tag counts for findings
-  async getTagCounts(): Promise<{ tag: string; count: number }[]> {
-    const findings = await this.findingRepository.find();
+  async getTagCounts(user: User): Promise<{ tag: string; count: number }[]> {
+    const findings = await this.findingRepository.find({
+      where: { projectId: In(user.projects.map(p => p.id)) },
+    });
 
     const tagMap: Record<string, number> = {};
 
@@ -145,7 +149,7 @@ export class FindingsService {
     return { tag, explanation };
   }
 
-  async groupFindingsByControl(reportId: number): Promise<
+  async groupFindingsByControl(reportId: number, user: User): Promise<
     Record<
       string,
       {
@@ -157,7 +161,8 @@ export class FindingsService {
     >
   > {
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
+      relations: ['report'],
     });
 
     const allControlIds = new Set<string>();
@@ -217,7 +222,7 @@ export class FindingsService {
   }
 
   // Generate mapped controls
-  async generateControlChecklistForReport(reportId: number): Promise<
+  async generateControlChecklistForReport(reportId: number, user: User): Promise<
     {
       control: string;
       affectedFindings: string[];
@@ -227,16 +232,16 @@ export class FindingsService {
     }[]
   > {
     const checklistItems = await this.checklistRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
 
     const report = await this.complianceReportRepository.findOne({
-      where: { id: reportId },
+      where: { id: reportId, userId: user.id },
     });
     if (!report) throw new NotFoundException('Report not found');
 
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
 
     const controlMap: Record<string, ComplianceFinding[]> = {};

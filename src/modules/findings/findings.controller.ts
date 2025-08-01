@@ -10,6 +10,7 @@ import { FindingsService } from './findings.service';
 import { Response } from 'express';
 import { PdfService } from '@/shared/services/pdf.service';
 import { ChecklistService } from '../checklist/checklist.service';
+import { User } from '@/common/decorators/user.decorator';
 
 @Controller('findings')
 export class FindingsController {
@@ -21,6 +22,7 @@ export class FindingsController {
 
   @Get('search')
   async findByTags(
+    @User() user,
     @Query('tags') tags: string,
     @Query('severity') severity?: string,
     @Query('category') category?: string,
@@ -29,7 +31,7 @@ export class FindingsController {
     const tagArray = tags?.split(',') ?? [];
     const report = reportId ? parseInt(reportId, 10) : undefined;
 
-    return this.findingsService.findFindingsByTags({
+    return this.findingsService.findFindingsByTags(user, {
       tags: tagArray,
       severity,
       category,
@@ -38,13 +40,13 @@ export class FindingsController {
   }
 
   @Get('tags')
-  async getTagCounts() {
-    return this.findingsService.getTagCounts();
+  async getTagCounts(@User() user) {
+    return this.findingsService.getTagCounts(user);
   }
 
   @Get(':id/grouped')
-  async getGroupedFindings(@Param('id') id: number) {
-    return this.findingsService.groupFindingsByControl(id);
+  async getGroupedFindings(@Param('id') id: number, @User() user) {
+    return this.findingsService.groupFindingsByControl(id, user);
   }
 
   @Get('tags/:tag/explanation')
@@ -53,14 +55,14 @@ export class FindingsController {
   }
 
   @Get('checklist/:id')
-  async getChecklist(@Param('id') id: number) {
-    return this.findingsService.generateControlChecklistForReport(id);
+  async getChecklist(@Param('id') id: number, @User() user) {
+    return this.findingsService.generateControlChecklistForReport(id, user);
   }
 
   @Get('checklist/:id/pdf')
-  async exportChecklistPdf(@Param('id') id: number, @Res() res: Response) {
-    const checklist = await this.findingsService.generateControlChecklistForReport(id);
-    const metrics = await this.checklistService.getChecklistMetrics(id);
+  async exportChecklistPdf(@Param('id') id: number, @Res() res: Response, @User() user) {
+    const checklist = await this.findingsService.generateControlChecklistForReport(id, user);
+    const metrics = await this.checklistService.getChecklistMetrics(id, user);
     const report = await this.findingsService.getFullReport(id);
 
     const tagCounts = report.findings
@@ -91,7 +93,7 @@ export class FindingsController {
   }
 
   @Get(':id')
-  async getFindingsForReport(@Param('id') id: number) {
-    return this.findingsService.getFindingsForReport(+id);
+  async getFindingsForReport(@Param('id') id: number, @User() user) {
+    return this.findingsService.getFindingsForReport(+id, user);
   }
 }

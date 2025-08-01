@@ -14,9 +14,6 @@ export class CreateIntegrationDto {
   projectId: string;
 
   @IsString()
-  userId: string;
-
-  @IsString()
   credentials: string;
 
   @IsBoolean()

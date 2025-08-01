@@ -31,7 +31,7 @@ export class Integration {
     project: Project;
   
     @Column()
-    userId: string;
+    userId: number;
   
     @ManyToOne(() => User, user => user.integrations)
     user: User;

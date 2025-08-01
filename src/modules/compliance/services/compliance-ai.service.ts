@@ -4,6 +4,7 @@ import { calculateComplianceScore } from "@/shared/utils/compliance-score.util";
 import { Injectable } from "@nestjs/common";
 import { ComplianceFinding } from "../entities/compliance-finding.entity";
 import { ComplianceReport } from "../entities/compliance-report.entity";
+import { User } from "@/modules/auth/entities/user.entity";
 
 @Injectable()
 export class ComplianceAIService {
@@ -16,13 +17,14 @@ export class ComplianceAIService {
     report: ComplianceReport,
     fileContent: string,
     regenerate = false,
-    tone: 'executive' | 'technical' | 'remediation' | 'educational' = 'executive'
+    tone: 'executive' | 'technical' | 'remediation' | 'educational' = 'executive',
+    user: User
   ): Promise<string> {
     if (!regenerate && report.aiSummary) {
       return report.aiSummary;
     }
 
-    const checklistStats = await this.checklistService.getChecklistMetrics(report.id);
+    const checklistStats = await this.checklistService.getChecklistMetrics(report.id, user);
     const complianceScore = calculateComplianceScore(report.findings);
     const logSource = report.source === 'Other' ? 'Generic' : report.source;
 

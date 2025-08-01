@@ -8,6 +8,7 @@ import { ComplianceService } from "@/modules/compliance/compliance.service";
 import { S3Service } from "@/shared/services/s3.service";
 import { IntegrationsService } from "../integrations.service";
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { User } from "@/modules/auth/entities/user.entity";
 
 @Injectable()
 export class AWSScanService {
@@ -35,7 +36,7 @@ export class AWSScanService {
     externalId?: string;
     region?: string;
     projectId: string;
-    userId: string;
+    userId: number;
   }): Promise<Integration> {
     // Optional: Validate it works
     const creds = await this.awsSecretManagerService.assumeAwsRole(assumeRoleArn, externalId);
@@ -90,7 +91,7 @@ export class AWSScanService {
     return integration
   }
 
-  async scanAWSIntegrationProjects(projectId: string) {
+  async scanAWSIntegrationProjects(projectId: string, user: User) {
     const integrationProjects = await this.integrationProjectRepository.find({
       where: {
         type: IntegrationType.AWS,
@@ -140,6 +141,7 @@ export class AWSScanService {
           prefix: project.metadata?.prefix || `AWSLogs/${project.externalId}/CloudTrail/`,
           projectId: +projectId,
           userId: Number(integration.userId),
+          user,
         });
 
         project.lastScannedAt = new Date();
@@ -151,7 +153,7 @@ export class AWSScanService {
     }
   }
 
-  async processAwsLogs({ prefix = 'AWSLogs/', projectId, userId = 1 }: { prefix: string; projectId: number; userId?: number }) {
+  async processAwsLogs({ prefix = 'AWSLogs/', projectId, userId = 1, user }: { prefix: string; projectId: number; userId?: number, user: User }) {
     const rawLogs = await this.s3Service.fetchCloudTrailLogs(prefix);
     this.logger.log("CEPLM", JSON.stringify(rawLogs, null, 4));
 
@@ -190,8 +192,8 @@ export class AWSScanService {
         status: 'pending',
         fileDataKey: '',
       },
-      1,
       fakeFile,
+      user,
       'aws-logs',
     );
   }

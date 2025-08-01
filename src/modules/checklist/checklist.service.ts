@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ComplianceFinding } from '../compliance/entities/compliance-finding.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ComplianceControl } from '../compliance/entities/compliance-control.entity';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
 import {
@@ -9,8 +9,8 @@ import {
   ControlChecklistItem,
 } from './entities/control-checklist.entity';
 import { AuditTrailService } from '../audit-trail/audit.service';
-import { RequestWithUser } from '@/shared/types/types';
 import { AuditAction } from '../audit-trail/entities/audit-event.entity';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class ChecklistService {
@@ -30,7 +30,7 @@ export class ChecklistService {
     private readonly auditTrailService: AuditTrailService,
   ) {}
 
-  async getChecklistWithStatuses(reportId: number): Promise<
+  async getChecklistWithStatuses(reportId: number, user: User): Promise<
     {
       control: string;
       title: string;
@@ -44,11 +44,11 @@ export class ChecklistService {
     }[]
   > {
     const checklistItems = await this.checklistRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
 
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
 
     const controlMap: Record<string, string[]> = {};
@@ -108,7 +108,7 @@ export class ChecklistService {
     await this.checklistRepository.save(checklistItems);
   }
 
-  async getChecklistMetrics(reportId: number): Promise<{
+  async getChecklistMetrics(reportId: number, user: User): Promise<{
     resolved: number;
     inProgress: number;
     unresolved: number;
@@ -123,11 +123,11 @@ export class ChecklistService {
     severityByControl: Record<string, 'high' | 'medium' | 'low'>;
   }> {
     const checklistItems = await this.checklistRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
   
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
   
     let resolved = 0;
@@ -193,7 +193,7 @@ export class ChecklistService {
     };
   }
 
-  async getPrioritizedControls(reportId: number): Promise<
+  async getPrioritizedControls(reportId: number, user: User): Promise<
     {
       control: string;
       title: string;
@@ -202,7 +202,7 @@ export class ChecklistService {
     }[]
   > {
     const findings = await this.findingRepository.find({
-      where: { report: { id: reportId } },
+      where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
     });
 
     const controlToFindings: Record<string, ComplianceFinding[]> = {};
@@ -241,8 +241,9 @@ export class ChecklistService {
 
   async exportChecklistCSV(
     reportId: number,
+    user: User
   ): Promise<string> {
-    const checklist = await this.getChecklistWithStatuses(reportId);
+    const checklist = await this.getChecklistWithStatuses(reportId, user);
     const report = await this.reportRepository.findOne({
       where: { id: reportId },
       relations: ['findings', 'project'],
@@ -250,7 +251,7 @@ export class ChecklistService {
 
     if (!report) throw new NotFoundException('Report not found');
 
-    const metrics = await this.getChecklistMetrics(reportId);
+    const metrics = await this.getChecklistMetrics(reportId, user);
     const tagCountMap: Record<string, number> = {};
     const severityMap: Record<string, number> = {}; // High = 3, Medium = 2, Low = 1
 

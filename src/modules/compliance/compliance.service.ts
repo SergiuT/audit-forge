@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ComplianceReport } from './entities/compliance-report.entity';
 import { CreateComplianceReportDto } from './dto/create-compliance-report.dto';
 import { ComplianceFinding } from './entities/compliance-finding.entity';
@@ -18,8 +18,8 @@ import { ComplianceAction } from './entities/compliance-action.entity';
 import { FINDING_RECOMMENDATIONS } from '@/shared/utils/finding-recommendations.util';
 import { PdfService } from '@/shared/services/pdf.service';
 import { ChecklistService } from '../checklist/checklist.service';
-import { ComplianceRule, RuleSource } from './entities/compliance-rule.entity';
-import { DriftAnalysis, NvdRulesFilters, PaginationMeta } from '@/shared/types/types';
+import { ComplianceRule } from './entities/compliance-rule.entity';
+import { DriftAnalysis } from '@/shared/types/types';
 import { Project } from '../project/entities/project.entity';
 import { ControlTopic } from './entities/control-topic.entity';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
@@ -29,6 +29,7 @@ import { ComplianceAnalysisService } from './services/compliance-analysis.servic
 import { ComplianceDriftService } from './services/compliance-drift.service';
 import { ComplianceFileService } from './services/compliance-file.service';
 import { ComplianceReportService } from './services/compliance-report.service';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class ComplianceService {
@@ -65,8 +66,8 @@ export class ComplianceService {
   // Create a new report
   async create(
     createReportDto: CreateComplianceReportDto,
-    userId: number,
     file: Express.Multer.File,
+    user: User,
     prefix?: string,
   ): Promise<ComplianceReport> {
     try {
@@ -97,7 +98,7 @@ export class ComplianceService {
         ...createReportDto,
         fileDataKey: fileData.key,
         source: determineReportSourceFromPrefix(prefix || 'other'),
-        userId,
+        userId: user.id,
         complianceScore: analysis.complianceScore,
         categoryScores: analysis.categoryScores,
         controlScores: analysis.controlScores,
@@ -105,7 +106,7 @@ export class ComplianceService {
       };
 
       const source = determineReportSourceFromPrefix(prefix || 'other')
-      const report = await this.reportService.create(reportData, userId, source);
+      const report = await this.reportService.create(reportData, user.id, source);
 
       // 5. Save findings and actions
       const findingEntities = analysis.findings.map((findingResult) =>
@@ -137,13 +138,13 @@ export class ComplianceService {
       await this.checklistService.createChecklistItemsForReport(report);
 
       // 6. Generate AI summary asynchronously
-      this.generateSummaryAsync(report.id, fileData.content).catch(err => 
+      this.generateSummaryAsync(report.id, fileData.content, user).catch(err => 
         this.logger.error('Failed to generate AI summary', err)
       );
 
       // 7. Generate drift summary if applicable
       if (drift) {
-        this.generateDriftSummaryAsync(report.id, drift).catch(err => 
+        this.generateDriftSummaryAsync(report.id, drift, user).catch(err => 
           this.logger.error('Failed to generate drift summary', err)
         );
       }
@@ -197,30 +198,40 @@ export class ComplianceService {
   async generateSummary(
     id: number,
     regenerate = false,
-    tone: 'executive' | 'technical' | 'remediation' | 'educational' = 'executive'
+    tone: 'executive' | 'technical' | 'remediation' | 'educational' = 'executive',
+    user: User
   ): Promise<{ summary: string }> {
-    const report = await this.reportService.findOne(id);
+    const report = await this.reportService.findOne(id, user);
     const fileContent = await this.fileService.getFileContent(report.fileDataKey);
     
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${id} not found`);
+    }
+
     const summary = await this.aiService.generateSummary(
       report, 
       fileContent, 
       regenerate, 
-      tone
+      tone,
+      user
     );
 
     // Update report with summary
     await this.reportService.update(id, {
       aiSummary: summary,
       aiSummaryGeneratedAt: new Date(),
-    });
+    }, user);
 
     return { summary };
   }
 
   // Generate compliance PDF report
-  async generatePDF(id: number): Promise<Buffer> {
-    const report = await this.reportService.findOne(id);
+  async generatePDF(id: number, user: User): Promise<Buffer> {
+    const report = await this.reportService.findOne(id, user);
+
+    if (!report) {
+      throw new NotFoundException(`Report with ID ${id} not found`);
+    }
 
     const pdfBuffer = await this.pdfService.generateComplianceReport({
       summary: report.aiSummary,
@@ -239,103 +250,30 @@ export class ComplianceService {
     return pdfBuffer;
   }
 
-  private async generateSummaryAsync(reportId: number, fileContent: string): Promise<void> {
+  private async generateSummaryAsync(reportId: number, fileContent: string, user: User): Promise<void> {
     try {
-      const report = await this.reportService.findOne(reportId);
-      const summary = await this.aiService.generateSummary(report, fileContent);
+      const report = await this.reportService.findOne(reportId, user);
+      const summary = await this.aiService.generateSummary(report, fileContent, false, 'executive', user);
       
       await this.reportService.update(reportId, {
         aiSummary: summary,
         aiSummaryGeneratedAt: new Date(),
-      });
+      }, user);
     } catch (error) {
       this.logger.error(`Failed to generate summary for report ${reportId}`, error);
     }
   }
 
-  private async generateDriftSummaryAsync(reportId: number, drift: DriftAnalysis): Promise<void> {
+  private async generateDriftSummaryAsync(reportId: number, drift: DriftAnalysis, user: User): Promise<void> {
     try {
       const summary = await this.driftService.generateDriftSummary(drift);
       
       await this.reportService.update(reportId, {
         driftSummary: summary,
-      });
+      }, user);
     } catch (error) {
       this.logger.error(`Failed to generate drift summary for report ${reportId}`, error);
     }
-  }
-
-  async getNvdRules(filters: NvdRulesFilters): Promise<{ rules: ComplianceRule[], pagination: PaginationMeta }> {
-    const cacheKey = `nvd_rules:${JSON.stringify(filters)}`;
-    
-    return this.cacheService.getOrSet(
-      cacheKey,
-      async () => {
-        const { page = 1, limit = 10, ...queryFilters } = filters;
-        const offset = (page - 1) * limit;
-  
-        const baseQuery = this.ruleRepository
-          .createQueryBuilder('rule')
-          .where('rule.source = :source', { source: RuleSource.NVD });
-  
-        this.applyNvdFilters(baseQuery, queryFilters);
-  
-        const rules = await baseQuery
-          .orderBy('rule.metadata->>\'publishedDate\'', 'DESC')
-          .skip(offset)
-          .take(limit)
-          .getMany();
-  
-        const countQuery = this.ruleRepository
-          .createQueryBuilder('rule')
-          .where('rule.source = :source', { source: RuleSource.NVD });
-        
-        this.applyNvdFilters(countQuery, queryFilters);
-        const totalCount = await countQuery.getCount();
-  
-        // Calculate pagination metadata
-        const totalPages = Math.ceil(totalCount / limit);
-        const pagination: PaginationMeta = {
-          page,
-          limit,
-          total: totalCount,
-          totalPages,
-          hasNext: page < totalPages,
-          hasPrev: page > 1
-        };
-  
-        return { rules, pagination };
-      },
-      3600 // Cache for 1 hour
-    );
-  }
-
-  private applyNvdFilters(
-    queryBuilder: SelectQueryBuilder<ComplianceRule>, 
-    filters: Omit<NvdRulesFilters, 'page' | 'limit'>
-  ): void {
-    const filterMap = {
-      severity: 'rule.severity',
-      category: 'rule.category', 
-      cveId: 'rule.cveId',
-      fromDate: 'rule.metadata->>\'publishedDate\'',
-      toDate: 'rule.metadata->>\'publishedDate\''
-    };
-  
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value) {
-        const field = filterMap[key as keyof typeof filterMap];
-        if (field) {
-          if (key === 'fromDate') {
-            queryBuilder.andWhere(`${field} >= :${key}`, { [key]: value });
-          } else if (key === 'toDate') {
-            queryBuilder.andWhere(`${field} <= :${key}`, { [key]: value });
-          } else {
-            queryBuilder.andWhere(`${field} = :${key}`, { [key]: value });
-          }
-        }
-      }
-    });
   }
 
   async findOneByRunId(runId: number): Promise<ComplianceReport | null> {
@@ -351,10 +289,13 @@ export class ComplianceService {
     }, 7200);
   }
 
-  async filterFindings(reportId: number, filters: FilterFindingsDto) {
+  async filterFindings(reportId: number, filters: FilterFindingsDto, user: User) {
+    const projectIds = user.projects.map(p => p.id);
+
     const query = this.findingRepository
       .createQueryBuilder('finding')
-      .where('finding.reportId = :reportId', { reportId });
+      .where('finding.reportId = :reportId', { reportId })
+      .andWhere('finding.projectId IN (:...projectIds)', { projectIds });
 
     if (filters?.severity?.length) {
       query.andWhere('finding.severity IN (:...severity)', {
@@ -416,17 +357,5 @@ export class ComplianceService {
       reportId,
     }));
     return this.findingRepository.save(enriched);
-  }
-
-  async update(id: number, updateReportDto: any): Promise<ComplianceReport> {
-    const report = await this.reportService.findOne(id); // This will throw if not found
-
-    Object.assign(report, updateReportDto); // Update report with new data
-    return this.complianceReportRepository.save(report);
-  }
-
-  async delete(id: number): Promise<void> {
-    const report = await this.reportService.findOne(id); // This will throw if not found
-    await this.complianceReportRepository.remove(report);
   }
 }

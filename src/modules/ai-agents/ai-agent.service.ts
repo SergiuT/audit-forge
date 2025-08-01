@@ -5,6 +5,7 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { ConfigService } from '@nestjs/config';
 import { API_ROUTES_KNOWLEDGE } from '@/knowledge/api-routes';
 import { CacheService } from '@/shared/services/cache.service';
+import { User } from '../auth/entities/user.entity';
 
 interface AgentFunction {
     name: string;
@@ -84,7 +85,7 @@ export class AIAgentService {
         this.indexName = this.configService.get<string>('PINECONE_INDEX_NAME') || 'compliance-agent';
     }
 
-    async processMessage(message: string, context: { projectId?: string; userId?: string } = {}): Promise<string> {
+    async processMessage(message: string, context: { projectId?: string; user: User }): Promise<string> {
         this.logger.log(`Processing agent message: ${message}`);
 
         const messages = [
@@ -158,7 +159,7 @@ export class AIAgentService {
         }
     }
 
-    private async executeFunction(name: string, args: any, context: { projectId?: string; userId?: string }): Promise<any> {
+    private async executeFunction(name: string, args: any, context: { projectId?: string; user: User }): Promise<any> {
         switch (name) {
             case 'scan_github_compliance':
                 return this.scanGitHubCompliance(args.projectId, args.repos, context);
@@ -174,15 +175,15 @@ export class AIAgentService {
         }
     }
 
-    private async scanGitHubCompliance(projectId: string, repos: string[], context: { userId?: string }): Promise<any> {
+    private async scanGitHubCompliance(projectId: string, repos: string[], context: { user: User }): Promise<any> {
         try {
-            const userId = context?.userId;
+            const userId = context?.user.id;
             
             if (!userId) {
                 throw new Error('User ID is required for GitHub scanning');
             }
 
-            await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, userId);
+            await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, context.user);
 
             return {
                 success: true,

@@ -20,6 +20,7 @@ import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
 import { RetryService } from "@/shared/services/retry.service";
 import { CircuitBreakerService } from "@/shared/services/circuit-breaker.service";
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
+import { User } from "@/modules/auth/entities/user.entity";
 
 const pipeline = promisify(stream.pipeline);
 
@@ -72,7 +73,7 @@ export class GithubScanService {
     });
   }
 
-  async createOrUpdateGitHubIntegration(token: string, userId: string, projectId: string): Promise<Integration> {
+  async createOrUpdateGitHubIntegration(token: string, userId: number, projectId: string): Promise<Integration> {
     const githubUser = await this.githubService.getUserInfo(token);
     const integrationName = `GitHub (${githubUser.login})`;
 
@@ -126,7 +127,7 @@ export class GithubScanService {
     return saved;
   }
 
-  async scanGitHubIntegrationProjects(projectId: string, selectedRepos: string[], userId: string) {
+  async scanGitHubIntegrationProjects(projectId: string, selectedRepos: string[], user: User) {
     this.logger.log(`Scanning GitHub projects. ProjectId: ${projectId}, SelectedRepos: ${JSON.stringify(selectedRepos)}`);
 
     // Build the where condition properly
@@ -191,7 +192,7 @@ export class GithubScanService {
             projectId: +projectId,
             useManager: integration?.useManager,
             integrationId: integration?.id,
-            userId: +userId,
+            user,
           });
 
           await this.auditTrailService.logEvent({
@@ -228,7 +229,7 @@ export class GithubScanService {
     projectId,
     useManager,
     integrationId,
-    userId,
+    user,
   }: {
     token: string;
     owner: string;
@@ -237,7 +238,7 @@ export class GithubScanService {
     projectId: number;
     useManager: boolean;
     integrationId: string;
-    userId: number;
+    user: User;
   }) {
     try {
       const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/logs`;
@@ -310,7 +311,7 @@ export class GithubScanService {
         userId: 1,
       };
 
-      return await this.complianceService.create(dto, Number(userId), fakeFile, 'github-logs');
+      return await this.complianceService.create(dto, fakeFile, user, 'github-logs');
     } catch (err) {
       console.error('GitHub log ingestion error:', err);
       throw new BadRequestException('Failed to ingest logs from GitHub');

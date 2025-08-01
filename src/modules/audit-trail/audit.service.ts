@@ -13,8 +13,9 @@ export class AuditTrailService {
     private readonly auditRepository: Repository<AuditEvent>,
   ) {}
 
-  async getEvents(filters: GetEventsQueryDto) {
+  async getEvents(filters: GetEventsQueryDto, userId: string) {
     const qb = this.auditRepository.createQueryBuilder('event')
+      .where('event.userId = :userId', { userId })
       .leftJoinAndSelect('event.user', 'user') // if you have a relation
       .addSelect(['user.id', 'user.email', 'user.role']) 
       .orderBy('event.createdAt', 'DESC');
@@ -63,8 +64,9 @@ export class AuditTrailService {
     };
   }
 
-  async getGroupedEvents(filters: GetEventsQueryDto) {
+  async getGroupedEvents(filters: GetEventsQueryDto, userId: string) {
     const qb = this.auditRepository.createQueryBuilder('event')
+      .where('event.userId = :userId', { userId })
       .leftJoin('event.user', 'user')
       .addSelect(['user.id', 'user.email', 'user.role'])
       .orderBy('event.createdAt', 'DESC');

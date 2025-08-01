@@ -17,6 +17,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { RetryService } from '@/shared/services/retry.service';
 import { CircuitBreakerService } from '@/shared/services/circuit-breaker.service';
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
+import { User } from "@/modules/auth/entities/user.entity";
 
 @Injectable()
 export class GCPScanService {
@@ -76,7 +77,7 @@ export class GCPScanService {
     redirectUri,
   }: {
     projectId: string;
-    userId: string;
+    userId: number;
     authorizationCode: string;
     redirectUri: string;
   }): Promise<Integration> {
@@ -210,7 +211,7 @@ export class GCPScanService {
     }
   }
 
-  async scanGCPIntegrationProjects(projectId: string, selectedProjects: string[]) {
+  async scanGCPIntegrationProjects(projectId: string, selectedProjects: string[], user: User) {
     const integrationProjects = await this.integrationProjectRepository.find({
       where: {
         type: IntegrationType.GCP,
@@ -234,13 +235,13 @@ export class GCPScanService {
           gcpProjectId: project.externalId,
           filter: 'resource.type="gce_instance"', // or allow filter override later
           projectId: +projectId,
-          userId: Number(integration.userId),
+          user,
           tokenType: integration.useManager ? 'secretsManager' : 'aes',
           integrationId: integration.id,
         });
 
         await this.auditTrailService.logEvent({
-          userId: Number(integration.userId),
+          userId: user.id,
           projectId: +projectId,
           action: AuditAction.SCAN_COMPLETED,
           resourceType: 'IntegrationProject',
@@ -265,7 +266,7 @@ export class GCPScanService {
     credentialsJson,
     projectId,
     filter,
-    userId = 1,
+    user,
     tokenType,
     integrationId,
     scannedAt = new Date(),
@@ -274,7 +275,7 @@ export class GCPScanService {
     credentialsJson: string;
     filter: string;
     projectId: number;
-    userId?: number;
+    user: User;
     integrationId: string;
     tokenType: 'aes' | 'secretsManager';
     scannedAt?: Date;
@@ -308,12 +309,12 @@ export class GCPScanService {
           },
         },
         projectId,
-        userId,
+        userId: user.id,
         status: 'pending',
         fileDataKey: '', // filled after upload
       },
-      userId,
       fakeFile,
+      user,
       'gcp-logs',
     );
   }

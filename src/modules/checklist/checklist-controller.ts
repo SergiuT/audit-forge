@@ -9,27 +9,29 @@ export class ChecklistController {
   constructor(private readonly checklistService: ChecklistService) {}
 
   @Get('report/:reportId')
-  async getChecklistForReport(@Param('reportId') reportId: number) {
-    return this.checklistService.getChecklistWithStatuses(+reportId);
+  async getChecklistForReport(@Param('reportId') reportId: number, @User() user) {
+    return this.checklistService.getChecklistWithStatuses(reportId, user);
   }
 
   @Get('report/:reportId/metrics')
-  async getChecklistMetrics(@Param('reportId') reportId: number) {
-    return this.checklistService.getChecklistMetrics(+reportId);
+  async getChecklistMetrics(@Param('reportId') reportId: number, @User() user) {
+    return this.checklistService.getChecklistMetrics(reportId, user);
   }
 
   @Get('report/:reportId/prioritized-controls')
-  async getPrioritized(@Param('reportId') reportId: number) {
-    return this.checklistService.getPrioritizedControls(reportId);
+  async getPrioritized(@Param('reportId') reportId: number, @User() user) {
+    return this.checklistService.getPrioritizedControls(reportId, user);
   }
 
   @Get('report/:reportId/export')
   async exportChecklist(
     @Param('reportId') reportId: number,
     @Res() res: Response,
+    @User() user
   ) {
     const csv = await this.checklistService.exportChecklistCSV(
-      +reportId,
+      reportId,
+      user,
     )
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
@@ -50,11 +52,11 @@ export class ChecklistController {
       dueDate?: string;
       status?: ChecklistStatus;
     },
-    @User('id') userId: string
+    @User() user
   ) {
     const parsedDate = update.dueDate ? new Date(update.dueDate) : undefined;
 
-    return this.checklistService.updateChecklistItem(userId, +reportId, controlId, {
+    return this.checklistService.updateChecklistItem(user.id, +reportId, controlId, {
       ...update,
       dueDate: parsedDate,
     });

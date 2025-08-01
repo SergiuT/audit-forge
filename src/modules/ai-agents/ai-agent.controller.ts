@@ -19,12 +19,12 @@ export class AIAgentController {
     constructor(private readonly aiAgentService: AIAgentService) { }
 
     @Post('chat')
-    async chat(@Body() request: ChatRequest, @User('id') userId: string): Promise<ChatResponse> {
+    async chat(@Body() request: ChatRequest, @User() user): Promise<ChatResponse> {
         this.logger.log(`Agent chat request: ${request.message}`);
 
         const response = await this.aiAgentService.processMessage(
             request.message,
-            { projectId: request.projectId, userId }
+            { projectId: request.projectId, user }
         );
 
         return {
@@ -34,7 +34,7 @@ export class AIAgentController {
     }
 
     @Post('scan')
-    async quickScan(@Query('projectId') projectId: string): Promise<ChatResponse> {
+    async quickScan(@Query('projectId') projectId: string, @User() user): Promise<ChatResponse> {
         if (!projectId) {
             return {
                 response: 'Please provide a projectId query parameter.',
@@ -46,7 +46,7 @@ export class AIAgentController {
 
         const response = await this.aiAgentService.processMessage(
             message,
-            { projectId }
+            { projectId, user }
         );
 
         return {

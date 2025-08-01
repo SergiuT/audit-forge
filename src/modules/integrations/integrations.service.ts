@@ -6,6 +6,7 @@ import { decrypt, encrypt } from '@/shared/utils/encryption.util';
 import { Repository } from 'typeorm';
 import { AWSSecretManagerService } from '@/shared/services/aws-secret.service';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
+import { User } from '../auth/entities/user.entity';
 
 @Injectable()
 export class IntegrationsService {
@@ -19,7 +20,7 @@ export class IntegrationsService {
     private readonly awsSecretManagerService: AWSSecretManagerService,
   ) {}
 
-  async create(dto: CreateIntegrationDto): Promise<Integration> {
+  async create(dto: CreateIntegrationDto, userId: number): Promise<Integration> {
     const { credentials, useManager, name } = dto;
     let storedCredential = '';
 
@@ -32,13 +33,14 @@ export class IntegrationsService {
     const integration = this.integrationRepository.create({
       ...dto,
       credentials: storedCredential,
+      userId,
     });
 
     return this.integrationRepository.save(integration);
   }
 
-  async getById(id: string): Promise<Integration & { decryptedCredentials: string }> {
-    const integration = await this.integrationRepository.findOneOrFail({ where: { id } });
+  async getById(id: string, user: User): Promise<Integration & { decryptedCredentials: string }> {
+    const integration = await this.integrationRepository.findOneOrFail({ where: { id, userId: user.id } });
 
     let decrypted = '';
     if (integration.useManager) {
@@ -50,10 +52,11 @@ export class IntegrationsService {
     return { ...integration, decryptedCredentials: decrypted };
   }
 
-  async getScanHistoryForProject(integrationId: string): Promise<any[]> {
+  async getScanHistoryForProject(integrationId: string, user: User): Promise<any[]> {
     const rawReports = await this.complianceReportRepository
     .createQueryBuilder('report')
     .where(`report."reportData"->'details'->>'integrationId' = :integrationId`, { integrationId })
+    .andWhere('report.projectId IN (:...projectIds)', { projectIds: user.projects.map(p => p.id) })
     .orderBy('report.createdAt', 'DESC')
     .getMany();
   
@@ -71,8 +74,8 @@ export class IntegrationsService {
     }));
   }
 
-  async deleteIntegration(id: string) {
-    const integration = await this.integrationRepository.findOne({ where: { id } });
+  async deleteIntegration(id: string, userId: number) {
+    const integration = await this.integrationRepository.findOne({ where: { id, userId } });
   
     if (!integration) {
       throw new NotFoundException(`Integration with ID ${id} not found`);
