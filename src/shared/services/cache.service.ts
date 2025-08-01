@@ -85,12 +85,6 @@ export class CacheService {
         return `ai:${model}:${hash}`;
     }
 
-    // Utility method to generate cache keys for compliance scores
-    generateScoreKey(findings: any[]): string {
-        const hash = crypto.createHash('sha256').update(JSON.stringify(findings)).digest('hex');
-        return `score:${hash}`;
-    }
-
     // Method with automatic caching for functions
     async getOrSet<T>(
         key: string,

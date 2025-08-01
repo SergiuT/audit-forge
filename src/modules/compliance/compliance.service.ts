@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-// modules/compliance/compliance.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -150,43 +149,6 @@ export class ComplianceService {
       }
 
       return report;
-      // // Findings
-      // const savedReport = await this.complianceReportRepository.save(report);
-
-      // await this.auditTrailService.logEvent({
-      //   userId,
-      //   projectId: report.project.id,
-      //   action: AuditAction.REPORT_CREATED,
-      //   resourceType: 'ComplianceReport',
-      //   resourceId: report.id.toString(),
-      //   metadata: {
-      //     source: report.source,
-      //     complianceScore: report.complianceScore,
-      //     findings,
-      //   },
-      // });
-
-      // const findingEntities = findings.map((f) =>
-      //   this.findingRepository.create({ ...f, report: savedReport, projectId: project.id }),
-      // );
-      // await this.findingRepository.save(findingEntities);
-
-      // // Actions
-      // const savedFindings = await this.findingRepository.save(findingEntities);
-      // const actionsToSave = savedFindings.map((finding) =>
-      //   this.actionRepository.create({
-      //     recommendation:
-      //       FINDING_RECOMMENDATIONS[finding.rule] ||
-      //       'Review this finding and take appropriate action.',
-      //     finding,
-      //     projectId: project.id,
-      //   }),
-      // );
-      // await this.actionRepository.save(actionsToSave);
-
-      // await this.checklistService.createChecklistItemsForReport(savedReport);
-
-      // return savedReport;
     } catch (error) {
       throw new BadRequestException(
         'Error creating compliance report: ' + error.message,

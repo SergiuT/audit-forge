@@ -114,9 +114,4 @@ export class RetryService {
 
         throw lastError;
     }
-
-    private isRetryableError(error: any): boolean {
-        const status = error?.response?.status;
-        return status === 429 || (status >= 500 && status < 600);
-    }
 } 

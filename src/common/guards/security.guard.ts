@@ -12,7 +12,7 @@ export class SecurityGuard implements CanActivate {
     private jwtService: JwtService,
     private rateLimiterService: RateLimiterService,
     private authService: AuthService,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -22,7 +22,7 @@ export class SecurityGuard implements CanActivate {
     this.logger.log(`🔍 SecurityGuard checking route: ${route}`);
     // Get security policy for this route
     const policy = this.getSecurityPolicy(route);
-    
+
     if (!policy) {
       // Default to secure if no policy found
       this.logger.warn(`No security policy found for route: ${route}, defaulting to secure`);
@@ -35,7 +35,7 @@ export class SecurityGuard implements CanActivate {
       if (!authResult.success) {
         throw new UnauthorizedException(authResult.error);
       }
-      
+
       // Check roles if specified
       if (policy.roles && !policy.roles.includes(request.user.role)) {
         throw new ForbiddenException('Insufficient permissions');
@@ -54,7 +54,7 @@ export class SecurityGuard implements CanActivate {
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
-      
+
       // Set rate limit headers
       response.set('X-RateLimit-Limit', rateLimitResult.limit.toString());
       response.set('X-RateLimit-Remaining', rateLimitResult.remaining.toString());
@@ -105,15 +105,15 @@ export class SecurityGuard implements CanActivate {
     }
   }
 
-  private async checkRateLimit(request: any, config: any): Promise<{ 
-    success: boolean; 
-    limit: number; 
-    remaining: number; 
+  private async checkRateLimit(request: any, config: any): Promise<{
+    success: boolean;
+    limit: number;
+    remaining: number;
     reset: number;
     retryAfter?: number;
   }> {
     let key: string;
-    
+
     if (config.type === 'user') {
       if (!request.user) {
         // Fall back to IP-based rate limiting (same as your current fix)
@@ -149,7 +149,7 @@ export class SecurityGuard implements CanActivate {
 
       // Extract projectId from params or body
       const projectId = parseInt(request.params.projectId || request.body.projectId);
-      
+
       if (!projectId) {
         return { success: false, error: 'Project ID not found in request' };
       }
@@ -162,7 +162,7 @@ export class SecurityGuard implements CanActivate {
 
       // Check if user has access to this project
       const hasAccess = user.projects?.some(p => p.id === projectId);
-      
+
       if (!hasAccess) {
         this.logger.warn(`User ${user.id} denied access to project ${projectId}`);
         return { success: false, error: 'Access denied to this project' };
@@ -197,11 +197,11 @@ export class SecurityGuard implements CanActivate {
     // Simple pattern matching for :id, :projectId, etc.
     const routeParts = route.split('/');
     const patternParts = pattern.split('/');
-    
+
     if (routeParts.length !== patternParts.length) {
       return false;
     }
-    
+
     for (let i = 0; i < routeParts.length; i++) {
       if (patternParts[i].startsWith(':')) {
         // Dynamic parameter, always match
@@ -211,7 +211,7 @@ export class SecurityGuard implements CanActivate {
         return false;
       }
     }
-    
+
     return true;
   }
 

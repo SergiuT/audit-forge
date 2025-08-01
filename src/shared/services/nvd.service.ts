@@ -4,9 +4,6 @@ import axios from 'axios';
 import { ComplianceRule, RuleSource } from '@/modules/compliance/entities/compliance-rule.entity';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ControlTopic } from '@/modules/compliance/entities/control-topic.entity';
-import { cosineSimilarity } from '../utils/cosine-similarity.util';
-import { OpenAIService } from './openai.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NvdRulesFilters, PaginationMeta } from '../types/types';
 import { CacheService } from './cache.service';
@@ -25,7 +22,6 @@ export class NvdService {
     @InjectRepository(ComplianceRule)
     private ruleRepository: Repository<ComplianceRule>,
 
-    private readonly openaiService: OpenAIService,
     private readonly cacheService: CacheService,
     private configService: ConfigService
   ) {}
@@ -188,24 +184,6 @@ export class NvdService {
         }
       }
     });
-  }
-
-  async tagRuleWithTopics(
-    rule: ComplianceRule,
-    topics: ControlTopic[],
-  ): Promise<string[]> {
-    const input = rule.description; // or `${rule.rule}: ${rule.description}`
-    const embedding = await this.openaiService.getEmbedding(input);
-
-    const scored = topics
-      .map((topic) => ({
-        slug: topic.slug,
-        score: cosineSimilarity(topic.embedding, embedding),
-      }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3); // top 3 matches
-
-    return scored.map((s) => s.slug);
   }
 
   async delay(ms: number) {
