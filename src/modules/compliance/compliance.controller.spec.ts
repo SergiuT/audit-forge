@@ -3,11 +3,11 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { ComplianceController } from './compliance.controller';
 import { ComplianceService } from './compliance.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { createTestUser, createTestComplianceReport } from '@/test/setup';
 import { JwtService } from '@nestjs/jwt';
 import { NvdService } from '@/shared/services/nvd.service';
+import { SecurityGuard } from '@/common/guards/security.guard';
 
 describe('ComplianceController (Integration)', () => {
     let app: INestApplication;
@@ -30,7 +30,7 @@ describe('ComplianceController (Integration)', () => {
         syncNvdFeedV2: jest.fn(),
     };
 
-    const mockJwtAuthGuard = {
+    const mockSecurityGuard = {
         canActivate: jest.fn(),
     };
 
@@ -60,8 +60,8 @@ describe('ComplianceController (Integration)', () => {
                 },
             ],
         })
-            .overrideGuard(JwtAuthGuard)
-            .useValue(mockJwtAuthGuard)
+            .overrideGuard(SecurityGuard)
+            .useValue(mockSecurityGuard)
             .compile();
 
         app = moduleFixture.createNestApplication();
@@ -91,7 +91,7 @@ describe('ComplianceController (Integration)', () => {
     };
 
     const mockAuthenticatedUser = (user = createTestUser()) => {
-        mockJwtAuthGuard.canActivate.mockImplementation((context) => {
+        mockSecurityGuard.canActivate.mockImplementation((context) => {
             const request = context.switchToHttp().getRequest();
             request.user = user;
             return true;
@@ -120,7 +120,7 @@ describe('ComplianceController (Integration)', () => {
         });
 
         it('should return 401 when not authenticated', async () => {
-            mockJwtAuthGuard.canActivate.mockReturnValue(false);
+            mockSecurityGuard.canActivate.mockReturnValue(false);
 
             await request(app.getHttpServer())
                 .get('/compliance')
