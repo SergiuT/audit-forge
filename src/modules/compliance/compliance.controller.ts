@@ -24,12 +24,14 @@ import { FilterFindingsDto } from './dto/filter-findings.dto';
 import { RateLimitGuard } from '@/common/guards/rate-limit.guard';
 import { RateLimit } from '@/common/decorators/rate-limit.decorator';
 import { SeverityOptions } from '@/shared/types/types';
+import { ComplianceReportService } from './services/compliance-report.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('compliance')
 export class ComplianceController {
   constructor(
     private readonly complianceService: ComplianceService,
+    private readonly reportService: ComplianceReportService,
     private readonly nvdService: NvdService,
   ) {}
 
@@ -41,12 +43,12 @@ export class ComplianceController {
     type: 'user'
   })
   async findAll() {
-    return this.complianceService.findAll();
+    return this.reportService.findAll();
   }
 
   @Get(':id')
   async findOne(@Param('id') id: number) {
-    return this.complianceService.findOne(id);
+    return this.reportService.findOne(id);
   }
 
   @Get(':id/findings/filter')

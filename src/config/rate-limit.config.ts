@@ -32,6 +32,36 @@ export const RATE_LIMIT_CONFIG = {
         windowMs: 60 * 1000,
         maxRequests: 5,
         type: 'user'
+      },
+      '/compliance/:id/report': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'user'
+      },
+      '/compliance/:id/report/download': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'user'
+      },
+      '/integrations/github/callback': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'ip'
+      },
+      '/integrations/gcp/callback': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'ip'
+      },
+      '/integrations/github/auth-url': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'user'
+      },
+      '/integrations/gcp/auth-url': {
+        windowMs: 60 * 1000,
+        maxRequests: 5,
+        type: 'user'
       }
     }
   };

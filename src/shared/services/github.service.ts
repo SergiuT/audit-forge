@@ -1,6 +1,5 @@
 // src/shared/services/github.service.ts
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Octokit } from '@octokit/rest';
+import { Injectable } from '@nestjs/common';
 import { RetryService } from './retry.service';
 import { CircuitBreakerService } from './circuit-breaker.service';
 
@@ -11,7 +10,8 @@ export class GitHubService {
     private circuitBreakerService: CircuitBreakerService,
   ) { }
 
-  private getOctokit(token: string) {
+  private async getOctokit(token: string) {
+    const { Octokit } = await import('@octokit/rest');
     return new Octokit({ auth: token });
   }
 
@@ -20,7 +20,7 @@ export class GitHubService {
       execute: () => this.circuitBreakerService.execute(
         'github-user-info',
         async () => {
-          const client = this.getOctokit(token);
+          const client = await this.getOctokit(token);
           const { data } = await client.users.getAuthenticated();
           return data;
         }
@@ -35,7 +35,7 @@ export class GitHubService {
       execute: () => this.circuitBreakerService.execute(
         'github-list-repos',
         async () => {
-          const client = this.getOctokit(token);
+          const client = await this.getOctokit(token);
           return await client.paginate('GET /user/repos', {
             per_page: 100,
           });
@@ -51,7 +51,7 @@ export class GitHubService {
       execute: () => this.circuitBreakerService.execute(
         'github-org-repos',
         async () => {
-          const client = this.getOctokit(token);
+          const client = await this.getOctokit(token);
           return await client.paginate('GET /orgs/{org}/repos', {
             org,
             per_page: 100,
@@ -68,7 +68,7 @@ export class GitHubService {
       execute: () => this.circuitBreakerService.execute(
         'github-workflow-runs',
         async () => {
-          const client = this.getOctokit(token);
+          const client = await this.getOctokit(token);
           const { data } = await client.actions.listWorkflowRunsForRepo({
             owner,
             repo,
@@ -87,7 +87,7 @@ export class GitHubService {
       execute: () => this.circuitBreakerService.execute(
         'github-list-orgs',
         async () => {
-          const client = this.getOctokit(token);
+          const client = await this.getOctokit(token);
           const { data } = await client.orgs.listForAuthenticatedUser();
           return data;
         }

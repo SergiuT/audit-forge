@@ -41,6 +41,13 @@ export interface ComplianceReportWithExtras {
   categoryScores: Record<string, number>;
 }
 
+export interface ComplianceAnalysis {
+  findings: any[];
+  complianceScore: number;
+  categoryScores: Record<string, number>;
+  controlScores: Record<string, number>;
+}
+
 export interface NvdRulesFilters {
   severity?: 'critical' | 'high' | 'medium' | 'low';
   category?: string;
@@ -100,4 +107,13 @@ export interface ComplianceFindingResult {
   category: string;
   tags: string[];
   mappedControls: string[];
+}
+
+export interface DriftAnalysis {
+  newFindings: any[];
+  resolvedFindings: any[];
+  unchangedFindings: any[];
+  scoreDelta: number;
+  categoryScoreDelta: Record<string, number>;
+  controlScoreDelta: Record<string, number>;
 }

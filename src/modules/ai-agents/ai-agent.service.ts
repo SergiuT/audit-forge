@@ -4,6 +4,7 @@ import { GithubScanService } from '@/modules/integrations/services/github-scan.s
 import { Pinecone } from '@pinecone-database/pinecone';
 import { ConfigService } from '@nestjs/config';
 import { API_ROUTES_KNOWLEDGE } from '@/knowledge/api-routes';
+import { CacheService } from '@/shared/services/cache.service';
 
 interface AgentFunction {
     name: string;
@@ -75,6 +76,7 @@ export class AIAgentService {
         private readonly openaiService: OpenAIService,
         private readonly githubScanService: GithubScanService,
         private readonly configService: ConfigService,
+        private readonly cacheService: CacheService,
     ) {
         this.pinecone = new Pinecone({
             apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
@@ -202,47 +204,55 @@ export class AIAgentService {
     }
 
     private async searchComplianceControls(query: string, topK: number = 3): Promise<any> {
-        try {
-            const index = this.pinecone.index(this.indexName);
+        const cacheKey = `pinecone_search:${query}:${topK}`;
+    
+        return this.cacheService.getOrSet(
+            cacheKey,
+            async () => {
+                try {
+                    const index = this.pinecone.index(this.indexName);
 
-            // Generate query embedding
-            const queryEmbedding = await this.openaiService.getEmbedding(query);
+                    // Generate query embedding
+                    const queryEmbedding = await this.openaiService.getEmbedding(query);
 
-            // Search the vector database
-            const searchResults = await index.query({
-                vector: queryEmbedding,
-                filter: { type: 'compliance-control' },
-                topK,
-                includeMetadata: true,
-            });
+                    // Search the vector database
+                    const searchResults = await index.query({
+                        vector: queryEmbedding,
+                        filter: { type: 'compliance-control' },
+                        topK,
+                        includeMetadata: true,
+                    });
 
-            if (!searchResults.matches || searchResults.matches.length === 0) {
-                return {
-                    query,
-                    totalResults: 0,
-                    message: 'No compliance controls found. The knowledge base may need to be loaded.',
-                    suggestion: 'Try running: npx ts-node scripts/simple-load-knowledge.ts'
-                };
-            }
+                    if (!searchResults.matches || searchResults.matches.length === 0) {
+                        return {
+                            query,
+                            totalResults: 0,
+                            message: 'No compliance controls found. The knowledge base may need to be loaded.',
+                            suggestion: 'Try running: npx ts-node scripts/simple-load-knowledge.ts'
+                        };
+                    }
 
-            return {
-                query,
-                totalResults: searchResults.matches.length,
-                controls: searchResults.matches.map(match => ({
-                    controlId: match.metadata?.controlId,
-                    framework: match.metadata?.framework,
-                    title: match.metadata?.title,
-                    description: match.metadata?.description,
-                    domain: match.metadata?.domain,
-                    relevanceScore: match.score?.toFixed(3)
-                }))
-            };
-        } catch (error) {
-            return {
-                error: `Failed to search compliance controls: ${error.message}`,
-                suggestion: 'Ensure Pinecone is properly configured and the knowledge base is loaded'
-            };
-        }
+                    return {
+                        query,
+                        totalResults: searchResults.matches.length,
+                        controls: searchResults.matches.map(match => ({
+                            controlId: match.metadata?.controlId,
+                            framework: match.metadata?.framework,
+                            title: match.metadata?.title,
+                            description: match.metadata?.description,
+                            domain: match.metadata?.domain,
+                            relevanceScore: match.score?.toFixed(3)
+                        }))
+                    };
+                } catch (error) {
+                    return {
+                        error: `Failed to search compliance controls: ${error.message}`,
+                        suggestion: 'Ensure Pinecone is properly configured and the knowledge base is loaded'
+                    };
+                }
+            },
+            3600 // Cache for 1 hour
+        );
     }
 
     private getApiRouteInfo(operation?: string): any {
