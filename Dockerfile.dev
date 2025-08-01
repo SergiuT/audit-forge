@@ -1,0 +1,29 @@
+FROM node:20-alpine
+
+RUN apk update && apk upgrade && \
+    apk add --no-cache python3 make g++ && \
+    rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock ./
+
+# Install ALL dependencies (including dev dependencies for development)
+RUN npm ci && \
+    npm audit fix --force && \
+    npm audit --audit-level=high || true
+
+# Copy source code
+COPY . .
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nestjs -u 1001
+RUN chown -R nestjs:nodejs /app
+USER nestjs
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start:dev"]

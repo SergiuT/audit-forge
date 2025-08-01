@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class AddDatabaseIndexes1753975151482 implements MigrationInterface {
-    name = 'AddDatabaseIndexes1753975151482'
+export class AddDatabaseIndexes1753975151483 implements MigrationInterface {
+    name = 'AddDatabaseIndexes1753975151483'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         // Users table indexes
