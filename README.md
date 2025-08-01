@@ -28,7 +28,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=your_password
-DB_DATABASE=ai_compliance
+DB_DATABASE=your_database
 
 # Node
 NODE_ENV=development
@@ -55,23 +55,6 @@ npm run start:dev
 ### API Documentation
 
 Once the server is running, visit `http://localhost:3000/api` to access the Swagger documentation.
-
-### Cloudflare Token Setup
-
-1. Go to your Cloudflare dashboard
-2. Navigate to "My Profile" > "API Tokens"
-3. Create a new token with the following permissions:
-   - Zone Read
-   - Workers Read
-   - Account Settings Read
-
-### API Endpoints
-
-- `POST /cloudflare/projects` - Connect a new Cloudflare project
-- `GET /cloudflare/projects` - List all connected projects
-- `GET /cloudflare/projects/active` - List active projects
-- `GET /cloudflare/projects/:projectId/validate` - Validate project token
-- `DELETE /cloudflare/projects/:projectId` - Disconnect a project
 
 ### Testing
 
