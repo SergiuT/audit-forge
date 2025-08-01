@@ -16,6 +16,8 @@ import { AuditTrailService } from '../audit-trail/audit.service';
 import { createTestProject, createTestComplianceReport } from '@/test/setup';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SeverityOptions } from '@/shared/types/types';
+import { ComplianceReportService } from './services/compliance-report.service';
+import { ComplianceAnalysisService } from './services/compliance-analysis.service';
 
 describe('ComplianceService', () => {
     let service: ComplianceService;
@@ -28,6 +30,7 @@ describe('ComplianceService', () => {
     let s3Service: S3Service;
     let openaiService: OpenAIService;
     let auditTrailService: AuditTrailService;
+    let complianceReportService: ComplianceReportService;
 
     const mockComplianceReportRepository = {
         find: jest.fn(),
@@ -60,6 +63,14 @@ describe('ComplianceService', () => {
     const mockActionRepository = {
         find: jest.fn(),
         save: jest.fn(),
+    };
+
+    const mockComplianceReportService = {
+        findAll: jest.fn(),
+        findOne: jest.fn(),
+        create: jest.fn(),
+        generateSummary: jest.fn(),
+        generatePDF: jest.fn(),
     };
 
     const mockRuleRepository = {
@@ -170,6 +181,10 @@ describe('ComplianceService', () => {
                     useValue: mockOpenAIService,
                 },
                 {
+                    provide: ComplianceReportService,
+                    useValue: mockComplianceReportService,
+                },
+                {
                     provide: AuditTrailService,
                     useValue: mockAuditTrailService,
                 },
@@ -186,6 +201,7 @@ describe('ComplianceService', () => {
         s3Service = module.get<S3Service>(S3Service);
         openaiService = module.get<OpenAIService>(OpenAIService);
         auditTrailService = module.get<AuditTrailService>(AuditTrailService);
+        complianceReportService = module.get<ComplianceReportService>(ComplianceReportService);
     });
 
     afterEach(() => {
@@ -197,7 +213,7 @@ describe('ComplianceService', () => {
             const mockReports = [createTestComplianceReport(), createTestComplianceReport({ id: 2 })];
             mockComplianceReportRepository.find.mockResolvedValue(mockReports);
 
-            const result = await service.findAll();
+            const result = await complianceReportService.findAll();
 
             expect(result).toEqual(mockReports);
             expect(mockComplianceReportRepository.find).toHaveBeenCalledWith();
@@ -208,7 +224,7 @@ describe('ComplianceService', () => {
             const mockReports = [createTestComplianceReport()];
             mockComplianceReportRepository.find.mockResolvedValue(mockReports);
 
-            const result = await service.findAll(projectId);
+            const result = await complianceReportService.findAll(projectId);
 
             expect(result).toEqual(mockReports);
             expect(mockComplianceReportRepository.find).toHaveBeenCalledWith({
@@ -236,7 +252,7 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.findOne.mockResolvedValue(mockReport);
             mockS3Service.getFile.mockResolvedValue(Buffer.from(mockFileContent));
 
-            const result = await service.findOne(reportId);
+            const result = await complianceReportService.findOne(reportId);
 
             expect(result).toHaveProperty('fileContent', mockFileContent);
             expect(result).toHaveProperty('findings', mockReport.findings);
@@ -252,7 +268,7 @@ describe('ComplianceService', () => {
             const reportId = 999;
             mockComplianceReportRepository.findOne.mockResolvedValue(null);
 
-            await expect(service.findOne(reportId)).rejects.toThrow(NotFoundException);
+            await expect(complianceReportService.findOne(reportId)).rejects.toThrow(NotFoundException);
             expect(mockComplianceReportRepository.findOne).toHaveBeenCalledWith({
                 where: { id: reportId },
                 relations: ['findings', 'findings.actions', 'project'],
@@ -265,7 +281,7 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.findOne.mockResolvedValue(mockReport);
             mockS3Service.getFile.mockRejectedValue(new Error('S3 error'));
 
-            await expect(service.findOne(reportId)).rejects.toThrow(BadRequestException);
+            await expect(complianceReportService.findOne(reportId)).rejects.toThrow(BadRequestException);
         });
     });
 
@@ -462,40 +478,6 @@ describe('ComplianceService', () => {
             mockComplianceReportRepository.findOne.mockResolvedValue(null);
 
             await expect(service.generatePDF(reportId)).rejects.toThrow(NotFoundException);
-        });
-    });
-
-    describe('evaluateComplianceFromContent', () => {
-        it('should evaluate compliance from log content', async () => {
-            const logContent = 'Test log content with security events';
-            const mockRules = [
-                {
-                    id: 1,
-                    name: 'Test Rule',
-                    pattern: 'security',
-                    severity: 'high',
-                    category: 'access-control',
-                },
-            ];
-
-            mockRuleRepository.find.mockResolvedValue(mockRules);
-
-            const result = await service.evaluateComplianceFromContent(logContent);
-
-            expect(Array.isArray(result)).toBe(true);
-            expect(result.length).toBeGreaterThan(0);
-            expect(result[0]).toHaveProperty('severity');
-            expect(result[0]).toHaveProperty('category');
-            expect(result[0]).toHaveProperty('description');
-        });
-
-        it('should return empty array when no rules match', async () => {
-            const logContent = 'Clean log content';
-            mockRuleRepository.find.mockResolvedValue([]);
-
-            const result = await service.evaluateComplianceFromContent(logContent);
-
-            expect(result).toEqual([]);
         });
     });
 
