@@ -1,5 +1,5 @@
 // modules/project/entities/project.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { ComplianceReport } from '@/modules/compliance/entities/compliance-report.entity';
 import { User } from '@/modules/auth/entities/user.entity';
 import { Integration } from '@/modules/integrations/entities/integration.entity';
@@ -20,4 +20,10 @@ export class Project {
 
   @OneToMany(() => Integration, (integration) => integration.project)
   integrations: Integration[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

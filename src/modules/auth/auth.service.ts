@@ -87,4 +87,11 @@ export class AuthService {
       relations: ['refreshTokens'],
     });
   }
+
+  async findUserWithProjects(id: number) {
+    return this.userRepository.findOne({
+      where: { id },
+      relations: ['projects'],
+    });
+  }
 }

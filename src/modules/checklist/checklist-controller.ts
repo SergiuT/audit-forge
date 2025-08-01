@@ -2,11 +2,8 @@ import { Body, Controller, Get, Param, Patch, Query, Req, Res, UseGuards } from 
 import { ChecklistService } from './checklist.service';
 import { Response } from 'express';
 import { ChecklistStatus } from './entities/control-checklist.entity';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RequestWithUser } from '@/shared/types/types';
 import { User } from '@/common/decorators/user.decorator';
 
-@UseGuards(JwtAuthGuard)
 @Controller('checklist')
 export class ChecklistController {
   constructor(private readonly checklistService: ChecklistService) {}

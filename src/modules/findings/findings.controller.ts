@@ -70,7 +70,6 @@ export class FindingsController {
       return acc;
     }, {} as Record<string, number>);
 
-    console.log('WTF', JSON.stringify(checklist, null, 4))
     const buffer = await this.pdfService.generateChecklistPDF({
       checklist,
       summary: {

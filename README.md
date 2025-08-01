@@ -32,7 +32,7 @@ DB_DATABASE=your_database
 
 # Node
 NODE_ENV=development
-PORT=3000
+PORT=5001
 ```
 
 ### Installation

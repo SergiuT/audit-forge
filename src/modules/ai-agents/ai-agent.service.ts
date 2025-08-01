@@ -204,7 +204,7 @@ export class AIAgentService {
     }
 
     private async searchComplianceControls(query: string, topK: number = 3): Promise<any> {
-        const cacheKey = `pinecone_search:${query}:${topK}`;
+        const cacheKey = this.cacheService.generateAIKey(query, 'embedding');
     
         return this.cacheService.getOrSet(
             cacheKey,

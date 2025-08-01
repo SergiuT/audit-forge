@@ -1,7 +1,6 @@
 // modules/integrations/integrations.controller.ts
 import { Controller, Post, Body, BadRequestException, UseGuards, Get, Param, NotFoundException, Query, Delete, Res, UseInterceptors, Req, UploadedFile } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateIntegrationDto } from './dto/create-integration.dto';
 import { GitHubAuthService } from '@/shared/services/github-auth.service';
 import { GithubScanService } from './services/github-scan.service';
@@ -26,13 +25,11 @@ export class IntegrationsController {
   ) { }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   async createIntegration(@Body() dto: CreateIntegrationDto) {
     return this.integrationsService.create(dto);
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
   async getIntegration(@Param('id') id: string) {
     const integration = await this.integrationsService.getById(id);
     if (!integration) throw new NotFoundException('Integration not found');
@@ -66,7 +63,6 @@ export class IntegrationsController {
 
   // Github scan
   @Post('/projects/:projectId/github/scan')
-  @UseGuards(JwtAuthGuard)
   async scanGithubLogs(
     @Param('projectId') projectId: string,
     @Body('repos') repos: string[],
@@ -78,7 +74,6 @@ export class IntegrationsController {
 
   // AWS scan
   @Post('/aws/connect-role')
-  @UseGuards(JwtAuthGuard)
   async connectAWSViaRole(
     @Body() body: {
       assumeRoleArn: string;
@@ -94,13 +89,11 @@ export class IntegrationsController {
   }
 
   @Get('projects/:id/scan-history')
-  @UseGuards(JwtAuthGuard)
   async getScanHistory(@Param('id') id: string) {
     return this.integrationsService.getScanHistoryForProject(id);
   }
 
   @Post('/projects/:projectId/aws/scan')
-  @UseGuards(JwtAuthGuard)
   async scanAwsProjects(
     @Param('projectId') projectId: string,
   ) {
@@ -110,7 +103,6 @@ export class IntegrationsController {
 
   // GitHub OAuth endpoints
   @Get('/github/auth-url')
-  @UseGuards(JwtAuthGuard)
   async getGitHubAuthUrl(
     @Query('projectId') projectId: string,
     @User('id') userId: string,
@@ -119,7 +111,6 @@ export class IntegrationsController {
   }
 
   @Get('/gcp/auth-url')
-  @UseGuards(JwtAuthGuard)
   async getGCPAuthUrl(
     @Query('projectId') projectId: string,
     @User('id') userId: string,
@@ -155,7 +146,6 @@ export class IntegrationsController {
   }
 
   @Post('/gcp/connect-oauth')
-  @UseGuards(JwtAuthGuard)
   async connectGCPOAuth(
     @Body() body: {
       projectId: string,
@@ -173,7 +163,6 @@ export class IntegrationsController {
   }
 
   @Post('/projects/:projectId/gcp/scan')
-  @UseGuards(JwtAuthGuard)
   async scanGcpProjects(
     @Param('projectId') projectId: string,
     @Body('projects') selectedProjects: string[],
@@ -183,7 +172,6 @@ export class IntegrationsController {
   }
 
   @Delete('/:id')
-  @UseGuards(JwtAuthGuard)
   async deleteIntegration(@Param('id') id: string) {
     await this.integrationsService.deleteIntegration(id);
     return { message: `Integration ${id} deleted` };

@@ -4,7 +4,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { JwtStrategy } from './modules/auth/strategies/jwt.strategy';
 import { validate } from './config/env.config';
 import { FindingsModule } from './modules/findings/findings.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
@@ -15,8 +14,8 @@ import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthController } from './common/controllers/health.controller';
 import { RateLimiterService } from './shared/services/rate-limiter.service';
-import { RateLimitGuard } from './common/guards/rate-limit.guard';
-import { APP_GUARD, Reflector } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
+import { SecurityGuard } from './common/guards/security.guard';
 
 @Module({
   imports: [
@@ -81,20 +80,14 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
     AIAgentsModule
   ],
   controllers: [
-    HealthController, // Global health check endpoints
+    HealthController,
   ],
   providers: [
-    JwtStrategy,
-    RateLimiterService,
-    RateLimitGuard,
-    Reflector,
+    SecurityGuard,
     {
       provide: APP_GUARD,
-      useClass: RateLimitGuard,
+      useClass: SecurityGuard,
     }
-  ],
-  exports: [
-    RateLimiterService,
   ]
 })
 export class AppModule { }

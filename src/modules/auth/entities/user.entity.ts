@@ -29,7 +29,17 @@ export class User extends BaseEntity {
   role: UserRole;
 
   @ManyToMany(() => Project, project => project.users)
-  @JoinTable()
+  @JoinTable({
+    name: 'users_projects',
+    joinColumn: {
+      name: 'usersId',
+      referencedColumnName: 'id'
+    },
+    inverseJoinColumn: {
+      name: 'projectId', 
+      referencedColumnName: 'id'
+    }
+  })
   projects: Project[];
 
   @OneToMany(() => Integration, (integration) => integration.user)

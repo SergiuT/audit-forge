@@ -48,7 +48,6 @@ export class DependencyScannerService {
             deps = parsed;
         }
 
-        console.log(`Saving ${deps.length} dependencies for report ${report.id}`);
         const saved = await this.dependencyRepo.save(
             deps.map((d) => ({
                 ...d,

@@ -2,12 +2,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ComplianceRule, RuleSource } from '@/modules/compliance/entities/compliance-rule.entity';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ControlTopic } from '@/modules/compliance/entities/control-topic.entity';
 import { cosineSimilarity } from '../utils/cosine-similarity.util';
 import { OpenAIService } from './openai.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { NvdRulesFilters, PaginationMeta } from '../types/types';
+import { CacheService } from './cache.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NvdService {
@@ -19,7 +22,12 @@ export class NvdService {
     @InjectRepository(ComplianceRule)
     private ruleRepo: Repository<ComplianceRule>,
 
-    private readonly openaiService: OpenAIService
+    @InjectRepository(ComplianceRule)
+    private ruleRepository: Repository<ComplianceRule>,
+
+    private readonly openaiService: OpenAIService,
+    private readonly cacheService: CacheService,
+    private configService: ConfigService
   ) {}
 
   // Every day at 2am
@@ -42,7 +50,7 @@ export class NvdService {
       try {
         const response = await axios.get(url, {
           headers: {
-            'apiKey': process.env.NVD_API_KEY,
+            'apiKey': this.configService.get<string>('NVD_API_KEY'),
           },
         });
         const data = response.data;
@@ -107,6 +115,79 @@ export class NvdService {
   
     this.logger.log(`✅ Synced ${inserted} new NVD rules.`);
     return inserted;
+  }
+
+  async getNvdRules(filters: NvdRulesFilters): Promise<{ rules: ComplianceRule[], pagination: PaginationMeta }> {
+    const cacheKey = `nvd_rules:${JSON.stringify(filters)}`;
+    
+    return this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const { page = 1, limit = 10, ...queryFilters } = filters;
+        const offset = (page - 1) * limit;
+  
+        const baseQuery = this.ruleRepository
+          .createQueryBuilder('rule')
+          .where('rule.source = :source', { source: RuleSource.NVD });
+  
+        this.applyNvdFilters(baseQuery, queryFilters);
+  
+        const rules = await baseQuery
+          .orderBy('rule.metadata->>\'publishedDate\'', 'DESC')
+          .skip(offset)
+          .take(limit)
+          .getMany();
+  
+        const countQuery = this.ruleRepository
+          .createQueryBuilder('rule')
+          .where('rule.source = :source', { source: RuleSource.NVD });
+        
+        this.applyNvdFilters(countQuery, queryFilters);
+        const totalCount = await countQuery.getCount();
+  
+        // Calculate pagination metadata
+        const totalPages = Math.ceil(totalCount / limit);
+        const pagination: PaginationMeta = {
+          page,
+          limit,
+          total: totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        };
+  
+        return { rules, pagination };
+      },
+      3600 // Cache for 1 hour
+    );
+  }
+
+  private applyNvdFilters(
+    queryBuilder: SelectQueryBuilder<ComplianceRule>, 
+    filters: Omit<NvdRulesFilters, 'page' | 'limit'>
+  ): void {
+    const filterMap = {
+      severity: 'rule.severity',
+      category: 'rule.category', 
+      cveId: 'rule.cveId',
+      fromDate: 'rule.metadata->>\'publishedDate\'',
+      toDate: 'rule.metadata->>\'publishedDate\''
+    };
+  
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) {
+        const field = filterMap[key as keyof typeof filterMap];
+        if (field) {
+          if (key === 'fromDate') {
+            queryBuilder.andWhere(`${field} >= :${key}`, { [key]: value });
+          } else if (key === 'toDate') {
+            queryBuilder.andWhere(`${field} <= :${key}`, { [key]: value });
+          } else {
+            queryBuilder.andWhere(`${field} = :${key}`, { [key]: value });
+          }
+        }
+      }
+    });
   }
 
   async tagRuleWithTopics(
