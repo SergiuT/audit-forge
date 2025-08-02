@@ -1,28 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OpenAI } from 'openai';
 import { ConfigService } from '@nestjs/config';
 import { CacheService } from './cache.service';
 import { RetryService } from './retry.service';
 import { CircuitBreakerService } from './circuit-breaker.service';
+import { AWSSecretManagerService } from './aws-secret.service';
 
 @Injectable()
 export class OpenAIService {
   private openai: OpenAI;
+  private readonly logger = new Logger(OpenAIService.name);
 
   constructor(
     private configService: ConfigService,
     private cacheService: CacheService,
     private retryService: RetryService,
     private circuitBreakerService: CircuitBreakerService,
-  ) {
-    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    if (!apiKey) {
-      throw new Error('OPENAI_API_KEY is required');
-    }
+    private awsSecretManagerService: AWSSecretManagerService,
+  ) { }
 
+  async onModuleInit(): Promise<void> {
+    const apiKey = await this.awsSecretManagerService.getSecretWithFallback(
+      'openai-api-key', 
+      'OPENAI_API_KEY'
+    );
+    
     this.openai = new OpenAI({
       apiKey,
     });
+    this.logger.log('OpenAI initialized with AWS Secret Manager');
   }
 
   async getEmbedding(text: string): Promise<number[]> {

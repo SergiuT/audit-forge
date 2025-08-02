@@ -22,6 +22,7 @@ import { User } from "@/modules/auth/entities/user.entity";
 @Injectable()
 export class GCPScanService {
   private readonly logger = new Logger(IntegrationsService.name);
+  private encryptionKey: string; 
 
   constructor(
     @InjectRepository(Integration)
@@ -37,6 +38,11 @@ export class GCPScanService {
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
   ) { }
+
+  async onModuleInit(): Promise<void> {
+    const key = await this.awsSecretManagerService.getSecretWithFallback('encryption-key', 'ENCRYPTION_KEY');
+    this.encryptionKey = key;
+  }
 
   async generateAuthUrl(projectId: string, userId: string): Promise<{ authUrl: string }> {
     const clientId = this.configService.get<string>('GCP_CLIENT_ID');
@@ -87,6 +93,14 @@ export class GCPScanService {
       throw new BadRequestException('GCP OAuth credentials not configured');
     }
 
+    let existing = await this.integrationRepository.findOne({
+      where: {
+        userId,
+        projectId,
+        type: IntegrationType.GCP,
+      },
+    });
+
     this.logger.log(`Starting OAuth exchange for user ${userId}, project ${projectId}`);
     this.logger.log(`Client ID: ${clientId.substring(0, 10)}...`);
     this.logger.log(`Redirect URI: ${redirectUri}`);
@@ -120,15 +134,37 @@ export class GCPScanService {
 
       const credentialsJson = JSON.stringify(credentials);
       let secretRef = '';
-      const useManager = this.useAWSSecretsManager();
+      const useAWSSecretsManager = await this.awsSecretManagerService.useAWSSecretsManager();
 
-      if (useManager) {
+      if (existing) {
+        this.logger.log('Updating existing GCP OAuth integration...');
+        if (existing.useManager) {
+          await this.awsSecretManagerService.updateSecret(existing.credentials, credentialsJson);
+          secretRef = existing.credentials;
+        } else {
+          secretRef = encrypt(credentialsJson, this.encryptionKey);
+        }
+    
+        existing.name = 'GCP OAuth Integration';
+        existing.updatedAt = new Date();
+        existing.credentials = secretRef;
+        existing.useManager = useAWSSecretsManager;
+    
+        const updated = await this.integrationRepository.save(existing);
+        
+        // Update projects for existing integration
+        await this.updateGCPProjects(updated.id, credentialsJson);
+        
+        return updated;
+      }
+      
+      if (useAWSSecretsManager) {
         secretRef = await this.awsSecretManagerService.createSecret(
           `gcp-oauth-${userId}-${Date.now()}`,
           credentialsJson
         );
       } else {
-        secretRef = encrypt(credentialsJson);
+        secretRef = encrypt(credentialsJson, this.encryptionKey);
       }
 
       this.logger.log('Creating integration record...');
@@ -136,7 +172,7 @@ export class GCPScanService {
         type: IntegrationType.GCP,
         name: 'GCP OAuth Integration',
         credentials: secretRef,
-        useManager,
+        useManager: useAWSSecretsManager,
         projectId,
         userId,
       });
@@ -145,9 +181,7 @@ export class GCPScanService {
 
       // Fetch user's GCP projects for selection
       try {
-        this.logger.log('Calling gcpService.getProjects with credentials...');
         const projects = await this.gcpService.getProjects(credentialsJson);
-        this.logger.log(`Found ${projects.length} projects:`, projects);
 
         if (projects.length > 0) {
           this.logger.log('Saving integration projects...');
@@ -226,7 +260,7 @@ export class GCPScanService {
       try {
         const token = integration.useManager
           ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-          : decrypt(integration.credentials);
+          : decrypt(integration.credentials, this.encryptionKey);
 
         // Call your existing log ingestion method
         await this.processGcpLogs({
@@ -257,6 +291,58 @@ export class GCPScanService {
       } catch (err) {
         this.logger.warn(`[GCP] Failed to process project ${project.externalId}`, err);
       }
+    }
+  }
+
+  private async updateGCPProjects(integrationId: string, credentialsJson: string): Promise<void> {
+    try {
+      const projects = await this.gcpService.getProjects(credentialsJson);
+  
+      if (projects.length > 0) {
+        this.logger.log('Saving integration projects...');
+        for (const project of projects) {
+          this.logger.log(`Processing project: ${project.projectId} - ${project.name}`);
+  
+          // Check if project already exists
+          const existingProject = await this.integrationProjectRepository.findOne({
+            where: {
+              integrationId,
+              externalId: project.projectId,
+            },
+          });
+  
+          if (existingProject) {
+            // Update existing project
+            existingProject.name = project.name;
+            existingProject.metadata = {
+              number: project.number,
+              labels: project.labels,
+              state: project.state,
+            };
+            await this.integrationProjectRepository.save(existingProject);
+          } else {
+            // Create new project
+            await this.integrationProjectRepository.save({
+              type: IntegrationType.GCP,
+              name: project.name,
+              externalId: project.projectId,
+              metadata: {
+                number: project.number,
+                labels: project.labels,
+                state: project.state,
+              },
+              integrationId,
+            });
+          }
+        }
+        this.logger.log(`Successfully updated ${projects.length} integration projects`);
+      } else {
+        this.logger.warn('No GCP projects found for user');
+      }
+    } catch (projectError) {
+      this.logger.error('Failed to fetch GCP projects:', projectError);
+      // Don't fail the entire integration creation
+      this.logger.warn('Integration created/updated successfully, but project fetching failed.');
     }
   }
 
@@ -354,19 +440,5 @@ export class GCPScanService {
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
-  }
-
-  private useAWSSecretsManager(): boolean {
-    const region = this.configService.get<string>('AWS_REGION');
-    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
-    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-    const enableSecretManager = this.configService.get<string>('ENABLE_SECRETS_MANAGER')
-
-    return Boolean(
-      region &&
-      accessKeyId &&
-      secretAccessKey &&
-      enableSecretManager === 'true'
-    );
   }
 }

@@ -27,6 +27,8 @@ const pipeline = promisify(stream.pipeline);
 @Injectable()
 export class GithubScanService {
   private readonly logger = new Logger(IntegrationsService.name);
+  private encryptionKey: string;
+  
   constructor(
     @InjectRepository(IntegrationProject)
     private integrationProjectRepository: Repository<IntegrationProject>,
@@ -40,7 +42,12 @@ export class GithubScanService {
     private readonly auditTrailService: AuditTrailService,
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
-) { }
+  ) { }
+
+  async onModuleInit(): Promise<void> {
+    const key = await this.awsSecretManagerService.getSecretWithFallback('encryption-key', 'ENCRYPTION_KEY');
+    this.encryptionKey = key;
+  }
 
   async generateAuthUrl(projectId: string, userId: string): Promise<{ authUrl: string }> {
     return this.retryService.withRetry({
@@ -94,7 +101,7 @@ export class GithubScanService {
         await this.awsSecretManagerService.updateSecret(existing.credentials, token);
         secretRef = existing.credentials;
       } else {
-        secretRef = encrypt(token);
+        secretRef = encrypt(token, this.encryptionKey);
       }
 
       existing.name = integrationName;
@@ -106,17 +113,18 @@ export class GithubScanService {
     }
 
     // New integration
-    if (this.useAWSSecretsManager()) {
+    const useAWSSecretsManager = await this.awsSecretManagerService.useAWSSecretsManager();
+    if (useAWSSecretsManager) {
       secretRef = await this.awsSecretManagerService.createSecret(`github-${userId}-${Date.now()}`, token);
     } else {
-      secretRef = encrypt(token);
+      secretRef = encrypt(token, this.encryptionKey);
     }
 
     const integration = this.integrationRepository.create({
       type: IntegrationType.GITHUB,
       name: integrationName,
       credentials: secretRef,
-      useManager: this.useAWSSecretsManager(),
+      useManager: useAWSSecretsManager,
       userId,
       projectId,
     });
@@ -159,7 +167,7 @@ export class GithubScanService {
 
       const token = integration.useManager
         ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-        : decrypt(integration.credentials);
+        : decrypt(integration.credentials, this.encryptionKey);
 
       const [owner, repo] = project.externalId.split('/');
 
@@ -325,7 +333,7 @@ export class GithubScanService {
 
     const token = integration.useManager
       ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-      : decrypt(integration.credentials);
+      : decrypt(integration.credentials, this.encryptionKey);
 
     const userRepos = await this.githubService.listUserRepos(token);
     const orgs = await this.githubService.listOrgs(token);
@@ -371,19 +379,5 @@ export class GithubScanService {
     );
 
     return saved;
-  }
-
-  private useAWSSecretsManager(): boolean {
-    const region = this.configService.get<string>('AWS_REGION');
-    const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
-    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
-    const enableSecretManager = this.configService.get<string>('ENABLE_SECRETS_MANAGER')
-
-    return Boolean(
-      region &&
-      accessKeyId &&
-      secretAccessKey &&
-      enableSecretManager === 'true'
-    );
   }
 }

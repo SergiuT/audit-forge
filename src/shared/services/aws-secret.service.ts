@@ -107,30 +107,66 @@ export class AWSSecretManagerService {
       return identity.Account!;
     }
 
+    async useAWSSecretsManager(): Promise<boolean> {
+      const region = this.configService.get<string>('AWS_REGION');
+      const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
+      const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+      const enableSecretManager = this.configService.get<string>('ENABLE_SECRETS_MANAGER')
+  
+      return Boolean(
+        region &&
+        accessKeyId &&
+        secretAccessKey &&
+        enableSecretManager === 'true'
+      );
+    }
+
     async createSecret(name: string, value: string): Promise<string> {
+      try {
+        const command = new CreateSecretCommand({
+          Name: name,
+          SecretString: value,
+        });
+  
+        const response = await this.client.send(command);
+        return response.ARN!;
+      } catch (err) {
+        this.logger.error(`Failed to create secret: ${name}`, err);
+        throw err;
+      }
+    }
+
+    async getSecretWithFallback(secretName: string, envKey: string, defaultValue?: string): Promise<string> {
+      const useSecretManager = await this.useAWSSecretsManager();
+      
+      if (useSecretManager) {
         try {
-          const command = new CreateSecretCommand({
-            Name: name,
-            SecretString: value,
-          });
-    
-          const response = await this.client.send(command);
-          return response.ARN!;
-        } catch (err) {
-          this.logger.error(`Failed to create secret: ${name}`, err);
-          throw err;
+          return await this.getSecretValue(secretName);
+        } catch (error) {
+          this.logger.warn(`Failed to get secret ${secretName} from AWS, falling back to env var ${envKey}`);
         }
       }
+      
+      const envValue = this.configService.get(envKey);
+      if (!envValue && defaultValue) {
+        return defaultValue;
+      }
+      if (!envValue) {
+        throw new Error(`Secret not found: ${secretName} (env: ${envKey})`);
+      }
+      
+      return envValue;
+    }
     
-      async getSecretValue(secretId: string): Promise<string> {
-        try {
-          const command = new GetSecretValueCommand({ SecretId: secretId });
-          const response = await this.client.send(command);
-          return response.SecretString!;
-        } catch (err) {
-          this.logger.error(`Failed to get secret: ${secretId}`, err);
-          throw err;
-        }
+    async getSecretValue(secretId: string): Promise<string> {
+      try {
+        const command = new GetSecretValueCommand({ SecretId: secretId });
+        const response = await this.client.send(command);
+        return response.SecretString!;
+      } catch (err) {
+        this.logger.error(`Failed to get secret: ${secretId}`, err);
+        throw err;
+      }
     }
 
     async updateSecret(name: string, value: string): Promise<void> {

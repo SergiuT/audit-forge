@@ -270,7 +270,7 @@ export class IntegrationsController {
     @Body('projects') selectedProjects: string[],
     @User() user,
   ) {
-    this.logger.log(`Starting GCP scan for project ${projectId} by user ${user.id}`, { selectedProjects });
+    this.logger.log(`Starting GCP scan for project ${projectId} by user ${user.id}`);
 
     try {
       await this.gcpScanService.scanGCPIntegrationProjects(projectId, selectedProjects, user);

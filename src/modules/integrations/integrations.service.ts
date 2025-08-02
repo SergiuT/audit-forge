@@ -11,6 +11,8 @@ import { User } from '../auth/entities/user.entity';
 @Injectable()
 export class IntegrationsService {
   private readonly logger = new Logger(IntegrationsService.name);
+  private encryptionKey: string;
+  
   constructor(
     @InjectRepository(Integration)
     private integrationRepository: Repository<Integration>,
@@ -20,6 +22,11 @@ export class IntegrationsService {
     private readonly awsSecretManagerService: AWSSecretManagerService,
   ) {}
 
+  async onModuleInit(): Promise<void> {
+    const key = await this.awsSecretManagerService.getSecretWithFallback('encryption-key', 'ENCRYPTION_KEY');
+    this.encryptionKey = key;
+  }
+
   async create(dto: CreateIntegrationDto, userId: number): Promise<Integration> {
     const { credentials, useManager, name } = dto;
     let storedCredential = '';
@@ -27,7 +34,7 @@ export class IntegrationsService {
     if (useManager) {
       storedCredential = await this.awsSecretManagerService.createSecret(name, credentials);
     } else {
-      storedCredential = encrypt(credentials);
+      storedCredential = encrypt(credentials, this.encryptionKey);
     }
 
     const integration = this.integrationRepository.create({
@@ -46,7 +53,7 @@ export class IntegrationsService {
     if (integration.useManager) {
       decrypted = await this.awsSecretManagerService.getSecretValue(integration.credentials);
     } else {
-      decrypted = decrypt(integration.credentials);
+      decrypted = decrypt(integration.credentials, this.encryptionKey);
     }
 
     return { ...integration, decryptedCredentials: decrypted };

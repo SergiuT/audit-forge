@@ -3,6 +3,7 @@ import { Pinecone } from "@pinecone-database/pinecone";
 import { CacheService } from "./cache.service";
 import { OpenAIService } from "./openai.service";
 import { ConfigService } from "@nestjs/config";
+import { AWSSecretManagerService } from "./aws-secret.service";
 
 @Injectable()
 export class PineconeService {
@@ -14,11 +15,21 @@ export class PineconeService {
     private readonly configService: ConfigService,
     private readonly openaiService: OpenAIService,
     private readonly cacheService: CacheService,
+    private readonly awsSecretManagerService: AWSSecretManagerService,
   ) {
-    this.pinecone = new Pinecone({
-      apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
-    });
     this.indexName = this.configService.get<string>('PINECONE_INDEX_NAME') || 'compliance-agent';
+  }
+
+  async onModuleInit(): Promise<void> {
+    this.logger.log('PineconeService.onModuleInit: initializing');
+    const apiKey = await this.awsSecretManagerService.getSecretWithFallback(
+      'pinecone-api-key', 
+      'PINECONE_API_KEY'
+    );
+    
+    console.log('apiKey', apiKey);
+    this.pinecone = new Pinecone({ apiKey });
+    this.logger.log('Pinecone initialized with AWS Secret Manager');
   }
 
   async fetchControlsByIds(controlIds: string[]): Promise<Map<string, any>> {    

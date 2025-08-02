@@ -7,17 +7,20 @@ import { RefreshToken } from '../entities/refresh-token.entity';
 import { User } from '../entities/user.entity';
 import { Request } from 'express';
 import { TokenPayload, TokenResponse } from '@/shared/types/types';
+import { AWSSecretManagerService } from '@/shared/services/aws-secret.service';
 
 @Injectable()
 export class JwtService {
     constructor(
         private readonly jwtService: NestJwtService,
         private readonly configService: ConfigService,
+        private readonly awsSecretManagerService: AWSSecretManagerService,
+        
         @InjectRepository(RefreshToken)
         private readonly refreshTokenRepository: Repository<RefreshToken>,
     ) { }
 
-    generateAccessToken(user: User): string {
+    async generateAccessToken(user: User): Promise<string> {
         const payload: TokenPayload = {
             sub: user.id,
             email: user.email,
@@ -25,13 +28,15 @@ export class JwtService {
             type: 'access',
         };
 
+        const secret = await this.awsSecretManagerService.getSecretWithFallback('jwt-secret', 'JWT_SECRET');
+
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('JWT_SECRET'),
+            secret,
             expiresIn: this.configService.get<string>('JWT_EXPIRATION') || '15m',
         });
     }
 
-    generateRefreshToken(user: User, request?: Request): string {
+    async generateRefreshToken(user: User, request?: Request): Promise<string> {
         const payload: TokenPayload = {
             sub: user.id,
             email: user.email,
@@ -39,15 +44,18 @@ export class JwtService {
             type: 'refresh',
         };
 
+        const secret = await this.awsSecretManagerService.getSecretWithFallback('jwt-refresh-secret', 'JWT_REFRESH_SECRET');
+
+        console.log('secret', secret);
         return this.jwtService.sign(payload, {
-            secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+            secret,
             expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
         });
     }
 
     async generateTokenPair(user: User, request?: Request): Promise<TokenResponse> {
-        const accessToken = this.generateAccessToken(user);
-        const refreshToken = this.generateRefreshToken(user, request);
+        const accessToken = await this.generateAccessToken(user);
+        const refreshToken = await this.generateRefreshToken(user, request);
 
         // Store refresh token in database
         const refreshTokenEntity = this.refreshTokenRepository.create({
@@ -69,8 +77,9 @@ export class JwtService {
 
     async validateAccessToken(token: string): Promise<TokenPayload> {
         try {
+            const secret = await this.awsSecretManagerService.getSecretWithFallback('jwt-secret', 'JWT_SECRET');
             const payload = this.jwtService.verify<TokenPayload>(token, {
-                secret: this.configService.get<string>('JWT_SECRET'),
+                secret,
             });
 
             if (payload.type !== 'access') {
@@ -85,8 +94,9 @@ export class JwtService {
 
     async validateRefreshToken(token: string): Promise<TokenPayload> {
         try {
+            const secret = await this.awsSecretManagerService.getSecretWithFallback('jwt-refresh-secret', 'JWT_REFRESH_SECRET');
             const payload = this.jwtService.verify<TokenPayload>(token, {
-                secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+                secret,
             });
 
             if (payload.type !== 'refresh') {
