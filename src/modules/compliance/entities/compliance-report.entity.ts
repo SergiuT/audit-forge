@@ -57,6 +57,9 @@ export class ComplianceReport extends BaseEntity {
   @ManyToOne(() => Project, (project) => project.reports, { nullable: true })
   project: Project;
 
+  @Column({ nullable: true })
+  projectId: number;
+
   @OneToMany(() => ScannedDependency, (dep) => dep.report)
   dependencies: ScannedDependency[];
 

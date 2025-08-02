@@ -6,7 +6,6 @@ import { ComplianceReport } from './entities/compliance-report.entity';
 import { ComplianceFinding } from './entities/compliance-finding.entity';
 import { ComplianceAction } from './entities/compliance-action.entity';
 import { ComplianceRule } from './entities/compliance-rule.entity';
-import { ControlTopic } from './entities/control-topic.entity';
 import { Project } from '../project/entities/project.entity';
 import { S3Service } from '@/shared/services/s3.service';
 import { ChecklistService } from '../checklist/checklist.service';
@@ -17,7 +16,6 @@ import { createTestProject, createTestComplianceReport, createTestUser } from '@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SeverityOptions } from '@/shared/types/types';
 import { ComplianceReportService } from './services/compliance-report.service';
-import { ComplianceAnalysisService } from './services/compliance-analysis.service';
 import { In } from 'typeorm';
 
 describe('ComplianceService', () => {
@@ -26,7 +24,6 @@ describe('ComplianceService', () => {
     let findingRepository: Repository<ComplianceFinding>;
     let actionRepository: Repository<ComplianceAction>;
     let ruleRepository: Repository<ComplianceRule>;
-    let controlTopicRepository: Repository<ControlTopic>;
     let projectRepository: Repository<Project>;
     let s3Service: S3Service;
     let openaiService: OpenAIService;
@@ -162,10 +159,6 @@ describe('ComplianceService', () => {
                     useValue: mockRuleRepository,
                 },
                 {
-                    provide: getRepositoryToken(ControlTopic),
-                    useValue: mockControlTopicRepository,
-                },
-                {
                     provide: S3Service,
                     useValue: mockS3Service,
                 },
@@ -197,7 +190,6 @@ describe('ComplianceService', () => {
         findingRepository = module.get<Repository<ComplianceFinding>>(getRepositoryToken(ComplianceFinding));
         actionRepository = module.get<Repository<ComplianceAction>>(getRepositoryToken(ComplianceAction));
         ruleRepository = module.get<Repository<ComplianceRule>>(getRepositoryToken(ComplianceRule));
-        controlTopicRepository = module.get<Repository<ControlTopic>>(getRepositoryToken(ControlTopic));
         projectRepository = module.get<Repository<Project>>(getRepositoryToken(Project));
         s3Service = module.get<S3Service>(S3Service);
         openaiService = module.get<OpenAIService>(OpenAIService);

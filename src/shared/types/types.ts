@@ -100,6 +100,12 @@ export interface GitHubRepo {
   html_url: string;
 }
 
+export interface AgentFunction {
+  name: string;
+  description: string;
+  parameters: any;
+}
+
 export interface ComplianceFindingResult {
   rule: string;
   description: string;
@@ -116,4 +122,24 @@ export interface DriftAnalysis {
   scoreDelta: number;
   categoryScoreDelta: Record<string, number>;
   controlScoreDelta: Record<string, number>;
+}
+
+export interface NormalizedLogEvent {
+  eventName: string;
+  eventSource: string;
+  actor: string;
+  service: string;
+  resource: string | null;
+  actionCategory: string;
+  riskIndicators: string[];
+  controlContext: string;
+  contextSummary: string;
+  tags: string[];
+}
+
+export interface LogNormalizationResult {
+  success: boolean;
+  error?: string;
+  suggestion?: string;
+  normalizedEvents?: NormalizedLogEvent[];
 }

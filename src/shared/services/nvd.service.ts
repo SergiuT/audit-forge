@@ -5,7 +5,7 @@ import { ComplianceRule, RuleSource } from '@/modules/compliance/entities/compli
 import { Repository, SelectQueryBuilder } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { NvdRulesFilters, PaginationMeta } from '../types/types';
+import { NormalizedLogEvent, NvdRulesFilters, PaginationMeta } from '../types/types';
 import { CacheService } from './cache.service';
 import { ConfigService } from '@nestjs/config';
 

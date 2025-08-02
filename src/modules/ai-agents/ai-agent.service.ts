@@ -1,89 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAIService } from '@/shared/services/openai.service';
-import { GithubScanService } from '@/modules/integrations/services/github-scan.service';
-import { Pinecone } from '@pinecone-database/pinecone';
-import { ConfigService } from '@nestjs/config';
-import { API_ROUTES_KNOWLEDGE } from '@/knowledge/api-routes';
-import { CacheService } from '@/shared/services/cache.service';
 import { User } from '../auth/entities/user.entity';
-
-interface AgentFunction {
-    name: string;
-    description: string;
-    parameters: any;
-}
+import { agentFunctions, generateNormalizationPrompt } from '@/shared/utils/ai-agent.util';
+import { ComplianceFindingResult, LogNormalizationResult, NormalizedLogEvent, SeverityOptions } from '@/shared/types/types';
+import { PineconeService } from '@/shared/services/pinecone.service';
 
 @Injectable()
 export class AIAgentService {
     private readonly logger = new Logger(AIAgentService.name);
-    private pinecone: Pinecone;
-    private indexName: string;
-
-    // Define the functions/tools our agent can use
-    private readonly functions: AgentFunction[] = [
-        {
-            name: 'scan_github_compliance',
-            description: 'Scan GitHub repositories for SOC2 and ISO27001 compliance issues',
-            parameters: {
-                type: 'object',
-                properties: {
-                    projectId: {
-                        type: 'string',
-                        description: 'The project ID to scan'
-                    },
-                    repos: {
-                        type: 'array',
-                        items: { type: 'string' },
-                        description: 'Specific repositories to scan (empty array scans all repos)'
-                    }
-                },
-                required: ['projectId', 'repos']
-            }
-        },
-        {
-            name: 'search_compliance_controls',
-            description: 'Search for specific compliance controls across SOC2, ISO27001, and DORA frameworks',
-            parameters: {
-                type: 'object',
-                properties: {
-                    query: {
-                        type: 'string',
-                        description: 'The search query (e.g., "access control", "incident response", "encryption")'
-                    },
-                    topK: {
-                        type: 'number',
-                        description: 'Number of results to return (default: 3)'
-                    }
-                },
-                required: ['query']
-            }
-        },
-        {
-            name: 'get_api_route_info',
-            description: 'Get information about available API routes for compliance operations',
-            parameters: {
-                type: 'object',
-                properties: {
-                    operation: {
-                        type: 'string',
-                        description: 'Specific operation (e.g., "scan", "report", "export", "findings")'
-                    }
-                }
-            }
-        }
-    ];
 
     constructor(
         private readonly openaiService: OpenAIService,
-        private readonly githubScanService: GithubScanService,
-        private readonly configService: ConfigService,
-        private readonly cacheService: CacheService,
-    ) {
-        this.pinecone = new Pinecone({
-            apiKey: this.configService.get<string>('PINECONE_API_KEY')!,
-        });
-        this.indexName = this.configService.get<string>('PINECONE_INDEX_NAME') || 'compliance-agent';
-    }
+        private readonly pineconeService: PineconeService,
+    ) { }
 
     async processMessage(message: string, context: { projectId?: string; user: User }): Promise<string> {
         this.logger.log(`Processing agent message: ${message}`);
@@ -119,7 +48,7 @@ export class AIAgentService {
         try {
             const response = await this.openaiService.callWithFunctions(
                 messages,
-                this.functions,
+                agentFunctions,
                 { temperature: 0.1 }
             );
 
@@ -145,7 +74,7 @@ export class AIAgentService {
 
                 const finalResponse = await this.openaiService.callWithFunctions(
                     followUpMessages,
-                    this.functions,
+                    agentFunctions,
                     { temperature: 0.1 }
                 );
 
@@ -161,131 +90,171 @@ export class AIAgentService {
 
     private async executeFunction(name: string, args: any, context: { projectId?: string; user: User }): Promise<any> {
         switch (name) {
-            case 'scan_github_compliance':
-                return this.scanGitHubCompliance(args.projectId, args.repos, context);
-
             case 'search_compliance_controls':
-                return this.searchComplianceControls(args.query, args.topK);
+                return this.pineconeService.searchComplianceControls(args.query, args.topK);
 
-            case 'get_api_route_info':
-                return this.getApiRouteInfo(args.operation);
+            case 'analyze_logs_for_compliance':
+                return this.analyzeLogsForCompliance(args.logContent, args.logType);
 
             default:
                 throw new Error(`Unknown function: ${name}`);
         }
     }
 
-    private async scanGitHubCompliance(projectId: string, repos: string[], context: { user: User }): Promise<any> {
+    async analyzeLogsForCompliance(logContent: string, logSource: string): Promise<ComplianceFindingResult[]> {
         try {
-            const userId = context?.user.id;
-            
-            if (!userId) {
-                throw new Error('User ID is required for GitHub scanning');
+            const normalizedLogs = await this.normalizeLogsForAnalysis(logContent, logSource);
+            if (!normalizedLogs.success || !normalizedLogs.normalizedEvents) {
+                return [];
             }
 
-            await this.githubScanService.scanGitHubIntegrationProjects(projectId, repos, context.user);
+            const uniqueQueries = new Set<string>();
+        
+            for (const event of normalizedLogs.normalizedEvents) {
+                const query = this.buildVulnerabilitySearchQuery(event, logSource);
+                uniqueQueries.add(query);
+            }
+            
+            const controlResults = await this.batchSearchControls(Array.from(uniqueQueries));
 
-            return {
-                success: true,
-                message: `GitHub compliance scan initiated for project ${projectId}`,
-                repositories: repos.length > 0 ? repos : 'all repositories',
-                nextSteps: [
-                    'Scan results will be processed and stored as compliance findings',
-                    'Check the compliance reports for detailed analysis',
-                    'Use GET /compliance/project/{projectId}/reports to view results'
-                ]
-            };
+            const findings: ComplianceFindingResult[] = [];
+            const seenRules = new Set<string>();
+            
+            for (const event of normalizedLogs.normalizedEvents) {
+                const query = this.buildVulnerabilitySearchQuery(event, logSource);
+                const controls = controlResults.get(query) || [];
+                
+                for (const control of controls) {
+                    const ruleId = control.controlId || control.id;
+                    
+                    if (ruleId && !seenRules.has(ruleId)) {
+                        seenRules.add(ruleId);
+                        
+                        findings.push({
+                            rule: ruleId,
+                            description: control.description || control.title || 'Control match found',
+                            severity: this.mapSeverity(control?.severity),
+                            category: control.category || 'compliance',
+                            tags: control.tags || [],
+                            mappedControls: [ruleId],
+                        });
+                    }
+                }
+            }
+            
+            return findings;
         } catch (error) {
-            return {
-                success: false,
-                error: error.message,
-                suggestion: 'Please ensure the project has GitHub integration configured'
-            };
+            this.logger.error(`Error analyzing logs for compliance: ${error.message}`);
+            return [];
         }
     }
 
-    private async searchComplianceControls(query: string, topK: number = 3): Promise<any> {
-        const cacheKey = this.cacheService.generateAIKey(query, 'embedding');
-    
-        return this.cacheService.getOrSet(
-            cacheKey,
-            async () => {
-                try {
-                    const index = this.pinecone.index(this.indexName);
+    private async normalizeLogsForAnalysis(
+        logContent: string,
+        source: string,
+    ): Promise<LogNormalizationResult> {
+        const prompt = generateNormalizationPrompt();
 
-                    // Generate query embedding
-                    const queryEmbedding = await this.openaiService.getEmbedding(query);
-
-                    // Search the vector database
-                    const searchResults = await index.query({
-                        vector: queryEmbedding,
-                        filter: { type: 'compliance-control' },
-                        topK,
-                        includeMetadata: true,
-                    });
-
-                    if (!searchResults.matches || searchResults.matches.length === 0) {
-                        return {
-                            query,
-                            totalResults: 0,
-                            message: 'No compliance controls found. The knowledge base may need to be loaded.',
-                            suggestion: 'Try running: npx ts-node scripts/simple-load-knowledge.ts'
-                        };
+        let attempts = 0;
+        const maxAttempts = 3;
+            
+        while (attempts < maxAttempts) {
+            try {
+                const result = await this.openaiService.generateCustomSummary(
+                    `Log file content: ${logContent}\n\n\n Log source: ${source}\n\n\n
+                    ${attempts > 0 && 'Please normalize the log content into a JSON array of objects, the first attempt failed, you returned an incomplete array structure'}
+                    `,
+                    prompt,
+                    {
+                        model: 'gpt-4o-mini',
+                        temperature: 0.1,
+                        attempts,
+                        maxTokens: 8000
                     }
+                );
 
+                // Try to parse the JSON
+                const parsedResult = JSON.parse(result);
+                
+                // Validate that it's an array
+                if (Array.isArray(parsedResult)) {
                     return {
-                        query,
-                        totalResults: searchResults.matches.length,
-                        controls: searchResults.matches.map(match => ({
-                            controlId: match.metadata?.controlId,
-                            framework: match.metadata?.framework,
-                            title: match.metadata?.title,
-                            description: match.metadata?.description,
-                            domain: match.metadata?.domain,
-                            relevanceScore: match.score?.toFixed(3)
-                        }))
+                        success: true,
+                        normalizedEvents: parsedResult,
                     };
-                } catch (error) {
-                    return {
-                        error: `Failed to search compliance controls: ${error.message}`,
-                        suggestion: 'Ensure Pinecone is properly configured and the knowledge base is loaded'
-                    };
+                } else {
+                    attempts++;
+                    throw new Error('Response is not an array');
                 }
-            },
-            3600 // Cache for 1 hour
-        );
-    }
-
-    private getApiRouteInfo(operation?: string): any {
-        if (operation) {
-            // Search for specific operation in API routes
-            const relevantRoutes = API_ROUTES_KNOWLEDGE
-                .split('\n')
-                .filter(line => line.toLowerCase().includes(operation.toLowerCase()))
-                .slice(0, 10);
-
-            return {
-                operation,
-                relevantRoutes: relevantRoutes.length > 0 ? relevantRoutes : ['No specific routes found for this operation'],
-                note: 'Use GET, POST, DELETE operations as needed'
-            };
+            } catch (parseError) {
+                attempts++;
+                this.logger.warn(`JSON parsing attempt ${attempts} failed: ${parseError.message}`);
+                
+                if (attempts >= maxAttempts) {
+                    throw new Error(`Failed to parse JSON after ${maxAttempts} attempts: ${parseError.message}`);
+                }
+                
+                // Wait a bit before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
 
         return {
-            totalRoutes: 39,
-            categories: [
-                'Health & System Monitoring',
-                'Authentication',
-                'Compliance Management',
-                'Findings Analysis',
-                'Integration Management',
-                'Project Management',
-                'Checklist Management',
-                'Audit Trail',
-                'AI Agent System'
-            ],
-            authenticationRequired: 'JWT Bearer token for most routes',
-            baseUrl: 'All routes are relative to your API base URL'
+            success: false,
+            error: 'Failed to parse JSON',
+            suggestion: 'Check log format and ensure logs are valid'
         };
+    }
+
+    private async batchSearchControls(queries: string[]): Promise<Map<string, any[]>> {
+        const results = new Map<string, any[]>();
+        
+        // Process in parallel with error handling
+        const searchPromises = queries.map(async (query) => {
+            try {
+                const result = await this.pineconeService.searchComplianceControls(query, 5);
+                return { query, result: result.controls || [] };
+            } catch (error) {
+                this.logger.warn(`Failed to search controls for query: ${query}`, error);
+                return { query, result: [] };
+            }
+        });
+        
+        const searchResults = await Promise.allSettled(searchPromises);
+        
+        searchResults.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                results.set(result.value.query, result.value.result);
+            }
+        });
+        
+        return results;
+    }
+    
+    private buildVulnerabilitySearchQuery(event: NormalizedLogEvent, logSource: string): string {
+        const platformContext = {
+          aws: 'This log originates from AWS CloudTrail and involves services such as KMS, IAM, S3, or EC2.',
+          gcp: 'This log is from GCP Audit Logs and involves services like Cloud Functions, IAM, Storage, or Compute.',
+          github: 'This log is generated by GitHub Actions and relates to CI/CD pipelines, webhooks, or secrets.',
+        }[logSource] || `This is a log from ${logSource}.`;
+      
+        const summary = [
+          event.contextSummary,
+          event.actionCategory ? `This action falls under the category of ${event.actionCategory}.` : '',
+          event.riskIndicators?.length ? `It is associated with the following risk indicators: ${event.riskIndicators.join(', ')}.` : '',
+          event.tags?.length ? `Relevant tags include: ${event.tags.join(', ')}.` : ''
+        ].filter(Boolean).join(' ');
+      
+        return `${platformContext} ${summary}`.trim();
+    }
+    
+    private mapSeverity(severity: string): SeverityOptions {
+        const severityMap = {
+            'critical': SeverityOptions.HIGH,
+            'high': SeverityOptions.HIGH,
+            'medium': SeverityOptions.MEDIUM,
+            'low': SeverityOptions.LOW
+        };
+        return severityMap[severity?.toLowerCase()] || SeverityOptions.MEDIUM;
     }
 } 

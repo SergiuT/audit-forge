@@ -17,7 +17,7 @@ export class S3Service {
     private configService: ConfigService,
     private retryService: RetryService,
     private circuitBreakerService: CircuitBreakerService
-  ) {}
+  ) { }
 
   onModuleInit() {
     const region = this.configService.get<string>('AWS_REGION');
@@ -55,7 +55,7 @@ export class S3Service {
   }
 
   resetClient() {
-    this.onModuleInit(); // Re-initialize with default .env credentials
+    this.onModuleInit();
   }
 
   // Method to upload a file to S3
@@ -78,7 +78,7 @@ export class S3Service {
             Body: file.buffer,
             ContentType: file.mimetype,
           });
-  
+
           await this.s3Client.send(command);
           return key;
         }
@@ -99,16 +99,16 @@ export class S3Service {
             Bucket: this.bucket,
             Key: key,
           });
-  
+
           const data = await this.s3Client.send(command);
-  
+
           const chunks: Buffer[] = [];
           const stream = data.Body as Readable;
-  
+
           for await (const chunk of stream) {
             chunks.push(chunk);
           }
-  
+
           return Buffer.concat(chunks);
         }
       ),
@@ -124,39 +124,105 @@ export class S3Service {
     return `${prefix}/${timestamp}-${randomString}.${extension}`;
   }
 
-  async fetchCloudTrailLogs(prefix: string): Promise<string[]> {
-    this.checkS3Configuration();
+  async checkBucketAccess(bucketName: string, credentials: any, region: string): Promise<boolean> {
+    const client = new S3Client({
+      region,
+      credentials: {
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+      },
+    });
+
+    try {
+      await client.send(new ListObjectsV2Command({
+        Bucket: bucketName,
+        MaxKeys: 1
+      }));
+      return true;
+    } catch (error) {
+      this.logger.warn(`[S3Service] Failed to check bucket access for ${bucketName}: ${error}`);
+      return false;
+    }
+  }
+
+  async fetchCloudTrailLogs(prefix: string, bucket?: string): Promise<string[]> {
+    // Use provided bucket or fall back to configured bucket
+    const targetBucket = bucket || this.bucket;
+
+    if (!targetBucket) {
+      throw new Error('No S3 bucket specified for CloudTrail logs');
+    }
 
     return this.retryService.withRetry({
       execute: () => this.circuitBreakerService.execute(
         's3-list',
         async () => {
-          const list = await this.s3Client.send(new ListObjectsV2Command({ 
-            Bucket: this.bucket, 
-            Prefix: prefix 
-          }));
+          // Get current date for recent logs
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+          const currentDay = String(now.getDate()).padStart(2, '0');
 
-          const logs: string[] = [];
+          // Try current day first, then previous day
+          const recentPrefixes = [
+            `${prefix}/${currentYear}/${currentMonth}/${currentDay}/`,
+            `${prefix}/${currentYear}/${currentMonth}/${String(now.getDate() - 1).padStart(2, '0')}/`,
+            `${prefix}/${currentYear}/${currentMonth}/`,
+          ];
 
-          for (const obj of list.Contents || []) {
-            const key = obj.Key!;
-            const getCmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });
-            const response = await this.s3Client.send(getCmd);
-            const stream = response.Body as Readable;
+          let logs: string[] = [];
+          let foundLogs = false;
 
-            const chunks: Uint8Array[] = [];
+          for (const recentPrefix of recentPrefixes) {
+            if (foundLogs) break;
 
             try {
-              const contentStream = key.endsWith('.gz') ? stream.pipe(zlib.createGunzip()) : stream;
+              const list = await this.s3Client.send(new ListObjectsV2Command({
+                Bucket: targetBucket,
+                Prefix: recentPrefix,
+              }));
 
-              for await (const chunk of contentStream) {
-                chunks.push(chunk);
+              if (list.Contents && list.Contents.length > 0) {
+                // Sort by LastModified to get the most recent files
+                const sortedObjects = list.Contents.sort((a, b) =>
+                  (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0)
+                );
+
+                // Take only the 3 most recent log files
+                const recentObjects = sortedObjects.slice(0, 1);
+
+                for (const obj of recentObjects) {
+                  const key = obj.Key!;
+                  const getCmd = new GetObjectCommand({ Bucket: targetBucket, Key: key });
+                  const response = await this.s3Client.send(getCmd);
+                  const stream = response.Body as Readable;
+
+                  const chunks: Uint8Array[] = [];
+
+                  try {
+                    const contentStream = key.endsWith('.gz') ? stream.pipe(zlib.createGunzip()) : stream;
+
+                    for await (const chunk of contentStream) {
+                      chunks.push(chunk);
+                    }
+
+                    logs.push(Buffer.concat(chunks).toString('utf-8'));
+                    this.logger.log(`Processed recent log file: ${key}`);
+                  } catch (err) {
+                    this.logger.error(`Failed to process log file: ${key}`, err);
+                  }
+                }
+
+                foundLogs = true;
+                this.logger.log(`Found ${logs.length} recent CloudTrail log files from ${targetBucket}/${recentPrefix}`);
               }
-
-              logs.push(Buffer.concat(chunks).toString('utf-8'));
             } catch (err) {
-              this.logger.error(`Failed to process log file: ${key}`, err);
+              this.logger.warn(`No logs found in ${recentPrefix}, trying next prefix`);
             }
+          }
+
+          if (logs.length === 0) {
+            this.logger.warn(`No recent CloudTrail logs found in any recent prefixes`);
           }
 
           return logs;

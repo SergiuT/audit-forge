@@ -6,7 +6,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { FindingsService } from './findings.service';
 import { TagExplanation } from './entities/tag-explanation.entity';
 import { OpenAIService } from '@/shared/services/openai.service';
-import { ComplianceControl } from '../compliance/entities/compliance-control.entity';
 import { PdfService } from '@/shared/services/pdf.service';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
 import { ControlChecklistItem } from '../checklist/entities/control-checklist.entity';
@@ -20,7 +19,6 @@ import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
     TypeOrmModule.forFeature([
       ComplianceFinding,
       TagExplanation,
-      ComplianceControl,
       ComplianceReport,
       ControlChecklistItem,
       AuditEvent

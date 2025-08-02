@@ -13,6 +13,7 @@ import { PdfService } from './services/pdf.service';
 import { GitHubService } from './services/github.service';
 import { GCPService } from './services/gcp.service';
 import { RateLimiterService } from './services/rate-limiter.service';
+import { PineconeService } from './services/pinecone.service';
 
 @Global()
 @Module({
@@ -29,6 +30,7 @@ import { RateLimiterService } from './services/rate-limiter.service';
 
         // AI and external services
         OpenAIService,
+        PineconeService,
 
         // Cloud services
         S3Service,
@@ -54,7 +56,8 @@ import { RateLimiterService } from './services/rate-limiter.service';
         PdfService,
         GitHubService,
         GCPService,
-        RateLimiterService
+        RateLimiterService,
+        PineconeService
     ],
 })
 export class SharedModule { } 

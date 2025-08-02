@@ -11,31 +11,6 @@ const severityWeights = {
   [SeverityOptions.LOW]: 1,
 };
 
-export function getCategoryScores(findings: ComplianceFinding[]): CategoryScoreMap {
-  const categoryGroups: Record<string, ComplianceFinding[]> = {};
-
-  findings.forEach((f) => {
-    const categoryKey = f.category.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    
-    if (!categoryGroups[categoryKey]) {
-      categoryGroups[categoryKey] = [];
-    }
-    categoryGroups[categoryKey].push(f);
-  });
-
-  const scores: CategoryScoreMap = {};
-
-  for (const [category, groupFindings] of Object.entries(categoryGroups)) {
-    const maxPenalty = groupFindings.length * severityWeights[SeverityOptions.HIGH];
-    const actualPenalty = groupFindings.reduce((sum, f) => sum + (severityWeights[f.severity] || 0), 0);
-
-    const categoryScore = ((maxPenalty - actualPenalty) / maxPenalty) * 100;
-    scores[category] = Math.round(categoryScore);
-  }
-
-  return scores;
-}
-
 export function getControlScores(findings: ComplianceFinding[]): Record<string, number> {
   const controlMap: Record<string, ComplianceFinding[]> = {};
 
@@ -49,14 +24,22 @@ export function getControlScores(findings: ComplianceFinding[]): Record<string, 
   const scores: Record<string, number> = {};
 
   for (const [controlId, controlFindings] of Object.entries(controlMap)) {
-    const maxPenalty = controlFindings.length * severityWeights[SeverityOptions.HIGH];
-    const actualPenalty = controlFindings.reduce(
+    if (!controlFindings.length) {
+      scores[controlId] = 100;
+      continue;
+    }
+
+    const maxScore = 100;
+    const totalPenalty = controlFindings.reduce(
       (sum, f) => sum + (severityWeights[f.severity] || 0),
       0
     );
-
-    const controlScore = ((maxPenalty - actualPenalty) / maxPenalty) * 100;
-    scores[controlId] = Math.round(controlScore);
+    const maxPossiblePenalty = controlFindings.length * severityWeights[SeverityOptions.HIGH];
+    
+    const penaltyPercentage = (totalPenalty / maxPossiblePenalty) * 100;
+    const score = maxScore - penaltyPercentage;
+    
+    scores[controlId] = Math.max(0, Math.round(score));
   }
 
   return scores;
@@ -66,21 +49,58 @@ export function getControlScores(findings: ComplianceFinding[]): Record<string, 
 export function calculateComplianceScore(findings: ComplianceFinding[]): number {
   if (!findings.length) return 100;
 
-  const maxPenalty = findings.length * severityWeights[SeverityOptions.HIGH];
-  const actualPenalty = findings.reduce((sum, f) => sum + (severityWeights[f.severity] || 0), 0);
+  const maxScore = 100;
+  const totalPenalty = findings.reduce((sum, f) => sum + (severityWeights[f.severity] || 0), 0);
+  const maxPossiblePenalty = findings.length * severityWeights[SeverityOptions.HIGH];
+  
+  // More findings/severe findings = lower score
+  const penaltyPercentage = (totalPenalty / maxPossiblePenalty) * 100;
+  const score = maxScore - penaltyPercentage;
+  
+  return Math.max(0, Math.round(score));
+}
 
-  const score = ((maxPenalty - actualPenalty) / maxPenalty) * 100;
-  return Math.round(score);
+export function getCategoryScores(findings: ComplianceFinding[]): CategoryScoreMap {
+  const categoryGroups: Record<string, ComplianceFinding[]> = {};
+
+  findings.forEach((f) => {
+    const categoryKey = f.category.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    if (!categoryGroups[categoryKey]) {
+      categoryGroups[categoryKey] = [];
+    }
+    categoryGroups[categoryKey].push(f);
+  });
+
+  const scores: CategoryScoreMap = {};
+
+  for (const [category, groupFindings] of Object.entries(categoryGroups)) {
+    if (!groupFindings.length) {
+      scores[category] = 100;
+      continue;
+    }
+
+    const maxScore = 100;
+    const totalPenalty = groupFindings.reduce((sum, f) => sum + (severityWeights[f.severity] || 0), 0);
+    const maxPossiblePenalty = groupFindings.length * severityWeights[SeverityOptions.HIGH];
+    
+    const penaltyPercentage = (totalPenalty / maxPossiblePenalty) * 100;
+    const score = maxScore - penaltyPercentage;
+    
+    scores[category] = Math.max(0, Math.round(score));
+  }
+
+  return scores;
 }
 
 export function determineReportSourceFromPrefix(prefix: string): ReportSource {
-  if (!prefix) return ReportSource.OTHER;
-
-  const normalized = prefix.toLowerCase();
-
-  if (normalized.includes('aws')) return ReportSource.AWS;
-  if (normalized.includes('gcp')) return ReportSource.GCP;
-  if (normalized.includes('github')) return ReportSource.GITHUB;
-
-  return ReportSource.OTHER;
+  switch (prefix) {
+    case 'aws':
+      return ReportSource.AWS;
+    case 'gcp':
+      return ReportSource.GCP;
+    case 'github':
+      return ReportSource.GITHUB;
+    default:
+      return ReportSource.OTHER;
+  }
 }

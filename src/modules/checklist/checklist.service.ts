@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ComplianceFinding } from '../compliance/entities/compliance-finding.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { ComplianceControl } from '../compliance/entities/compliance-control.entity';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
 import {
   ChecklistStatus,
@@ -11,9 +10,11 @@ import {
 import { AuditTrailService } from '../audit-trail/audit.service';
 import { AuditAction } from '../audit-trail/entities/audit-event.entity';
 import { User } from '../auth/entities/user.entity';
+import { PineconeService } from '@/shared/services/pinecone.service';
 
 @Injectable()
 export class ChecklistService {
+  private readonly logger = new Logger(ChecklistService.name);
   constructor(
     @InjectRepository(ComplianceFinding)
     private findingRepository: Repository<ComplianceFinding>,
@@ -21,13 +22,12 @@ export class ChecklistService {
     @InjectRepository(ControlChecklistItem)
     private checklistRepository: Repository<ControlChecklistItem>,
 
-    @InjectRepository(ComplianceControl)
-    private readonly controlRepository: Repository<ComplianceControl>,
-
     @InjectRepository(ComplianceReport)
     private readonly reportRepository: Repository<ComplianceReport>,
 
     private readonly auditTrailService: AuditTrailService,
+
+    private readonly pineconeService: PineconeService,
   ) {}
 
   async getChecklistWithStatuses(reportId: number, user: User): Promise<
@@ -63,11 +63,9 @@ export class ChecklistService {
 
     if (!controlIds.length) return [];
 
-    const controls = await this.controlRepository.find({
-      where: controlIds.map((id) => ({ controlId: id })),
-    });
+    const controls = await this.pineconeService.fetchControlsByIds(controlIds);
 
-    return controls.map((control) => {
+    return Array.from(controls.values()).map((control) => {
       const item = checklistItems.find(
         (i) => i.controlId === control.controlId,
       );
@@ -101,7 +99,7 @@ export class ChecklistService {
         controlId,
         status: ChecklistStatus.UNRESOLVED,
         report,
-        projectId: report.project.id,
+        projectId: report.projectId,
       }),
     );
 
@@ -214,13 +212,11 @@ export class ChecklistService {
       });
     });
 
-    const controls = await this.controlRepository.find({
-      where: Object.keys(controlToFindings).map((id) => ({ controlId: id })),
-    });
+    const controlsMap = await this.pineconeService.fetchControlsByIds(Array.from(Object.keys(controlToFindings)));
 
     const severityScoreMap = { high: 3, medium: 2, low: 1 };
 
-    return controls.map((control) => {
+    return Array.from(controlsMap.values()).map((control) => {
       const relatedFindings = controlToFindings[control.controlId] || [];
 
       const score = relatedFindings.reduce((sum, f) => {

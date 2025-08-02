@@ -142,20 +142,6 @@ export class ComplianceController {
     }
   }
 
-  @Get('topics/controls')
-  async getControlTopics() {
-    this.logger.log(`Starting control topics fetch`);
-
-    try {
-      const topics = await this.complianceService.findAllControlTopics();
-      this.logger.log(`Successfully fetched ${topics.length} control topics`);
-      return topics;
-    } catch (error) {
-      this.logger.error(`Failed to fetch control topics`, error.stack);
-      throw new InternalServerErrorException('Failed to fetch control topics');
-    }
-  }
-
   @Post('rules/nvd-sync')
   async syncNvdRules() {
     this.logger.log(`🔍 Starting NVD rules sync`);

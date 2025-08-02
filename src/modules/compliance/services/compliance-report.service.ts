@@ -1,6 +1,6 @@
 import { AuditTrailService } from "@/modules/audit-trail/audit.service";
 import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { ComplianceReport } from "../entities/compliance-report.entity";
@@ -12,6 +12,7 @@ import { User } from "@/modules/auth/entities/user.entity";
 
 @Injectable()
 export class ComplianceReportService {
+  private readonly logger = new Logger(ComplianceReportService.name);
   constructor(
     @InjectRepository(ComplianceReport)
     private complianceReportRepository: Repository<ComplianceReport>,
@@ -29,7 +30,7 @@ export class ComplianceReportService {
         where: { project: { id: In(user.projects.map(p => p.id)) } },
         relations: ['findings', 'findings.actions', 'project'],
       });
-    }, 1800);
+    }, 200);
   }
 
   // Get a report by ID
@@ -55,7 +56,8 @@ export class ComplianceReportService {
 
   // Create a report
   async create(reportData: CreateComplianceReportDto, userId: number, source: string): Promise<ComplianceReport> {
-    const savedReport = await this.complianceReportRepository.save(reportData);
+    const reportEntity = this.complianceReportRepository.create(reportData);        
+    const savedReport = await this.complianceReportRepository.save(reportEntity);
 
     await this.auditTrailService.logEvent({
       userId,

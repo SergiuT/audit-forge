@@ -4,13 +4,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { OpenAIService } from '@/shared/services/openai.service';
 import { TagExplanation } from './entities/tag-explanation.entity';
-import { ComplianceControl } from '../compliance/entities/compliance-control.entity';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
 import {
   ChecklistStatus,
   ControlChecklistItem,
 } from '../checklist/entities/control-checklist.entity';
 import { User } from '../auth/entities/user.entity';
+import { PineconeService } from '@/shared/services/pinecone.service';
 
 @Injectable()
 export class FindingsService {
@@ -24,13 +24,12 @@ export class FindingsService {
     @InjectRepository(TagExplanation)
     private readonly explanationRepository: Repository<TagExplanation>,
 
-    @InjectRepository(ComplianceControl)
-    private readonly controlRepository: Repository<ComplianceControl>,
-
     @InjectRepository(ControlChecklistItem)
     private readonly checklistRepository: Repository<ControlChecklistItem>,
 
     private readonly openaiService: OpenAIService,
+
+    private readonly pineconeService: PineconeService,
   ) {}
 
   // Get findings for report
@@ -168,19 +167,14 @@ export class FindingsService {
     const allControlIds = new Set<string>();
     findings.forEach((f) => f.mappedControls?.forEach((c) => allControlIds.add(c)));
 
-    const controls = await this.controlRepository.find({
-      where: Array.from(allControlIds).map((id) => ({ controlId: id })),
-    });
-
-    const controlMap: Record<string, ComplianceControl> = {};
-    controls.forEach((c) => (controlMap[c.controlId] = c));
+    const controlsMap = await this.pineconeService.fetchControlsByIds(Array.from(allControlIds));
 
     const grouped: Record<string, any> = {};
 
     findings.forEach((finding) => {
       finding.mappedControls?.forEach((controlId) => {
         if (!grouped[controlId]) {
-          const control = controlMap[controlId];
+          const control = controlsMap[controlId];
           grouped[controlId] = {
             controlId,
             title: control?.title || 'Unknown Control',
@@ -256,11 +250,9 @@ export class FindingsService {
     });
 
     const controlIds = Object.keys(controlMap);
-    const controlEntities = await this.controlRepository.find({
-      where: controlIds.map((id) => ({ controlId: id })),
-    });
+    const controlsMap = await this.pineconeService.fetchControlsByIds(Array.from(controlIds));
 
-    return controlEntities.map((control) => {
+    return Array.from(controlsMap.values()).map((control) => {
       const item = checklistItems.find(
         (i) => i.controlId === control.controlId,
       );

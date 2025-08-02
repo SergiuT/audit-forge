@@ -9,6 +9,7 @@ import { S3Service } from "@/shared/services/s3.service";
 import { IntegrationsService } from "../integrations.service";
 import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { User } from "@/modules/auth/entities/user.entity";
+import { ComplianceReport } from "@/modules/compliance/entities/compliance-report.entity";
 
 @Injectable()
 export class AWSScanService {
@@ -72,20 +73,35 @@ export class AWSScanService {
       sessionToken: creds.SessionToken,
       expiration: creds.Expiration,
     });
+    const assumedAccountId = await this.awsSecretManagerService.getAwsAccountIdFromCreds({
+      accessKeyId: creds.AccessKeyId!,
+      secretAccessKey: creds.SecretAccessKey!,
+      sessionToken: creds.SessionToken,
+      expiration: creds.Expiration,
+    });
 
+    this.logger.log(`[AWS] Discovered ${accounts.length} AWS accounts`);
     for (const acc of accounts) {
-      await this.integrationProjectRepository.save({
-        integrationId: integration.id,
-        type: IntegrationType.AWS,
-        name: acc.name,
-        externalId: acc.id,
-        metadata: {
-          email: acc.email,
-          prefix: `AWSLogs/${acc.id}/CloudTrail/`,
-          region,
-          discoveredFromOrg: true,
-        },
-      });
+      if (acc.id === assumedAccountId) {
+        const cloudTrailBucket = await this.discoverCloudTrailBucket(creds, region, acc.id);
+
+        this.logger.log(`[AWS] Discovered CloudTrail bucket ${cloudTrailBucket} for account ${acc.id}`);
+        await this.integrationProjectRepository.save({
+          integrationId: integration.id,
+          type: IntegrationType.AWS,
+          name: acc.name,
+          externalId: acc.id,
+          metadata: {
+            email: acc.email,
+            prefix: `AWSLogs/${acc.id}/CloudTrail/`,
+            region,
+            discoveredFromOrg: true,
+            bucket: cloudTrailBucket,
+          },
+        });
+      } else {
+        this.logger.warn(`[AWS] Skipping account ${acc.id} - not accessible with assumed role`);
+      }
     }
 
     return integration
@@ -105,6 +121,7 @@ export class AWSScanService {
       if (!integration || integration.projectId != projectId) continue;
 
       try {
+        this.logger.log(`[AWS] Starting scan for account ${project.externalId}`);
         const creds = await this.awsSecretManagerService.assumeAwsRole(
           integration.assumeRoleArn!,
           integration.externalId || undefined
@@ -134,36 +151,39 @@ export class AWSScanService {
           },
         });
 
-        // Override default S3 client for this run
         await this.s3Service.setCustomClient(s3);
 
         await this.processAwsLogs({
-          prefix: project.metadata?.prefix || `AWSLogs/${project.externalId}/CloudTrail/`,
+          prefix: project.metadata?.prefix + project.metadata?.region || `AWSLogs/${project.externalId}/CloudTrail/${project.metadata?.region}`,
           projectId: +projectId,
           userId: Number(integration.userId),
           user,
+          bucket: project.metadata?.bucket || `aws-cloudtrail-logs-${project.externalId}`,
         });
 
         project.lastScannedAt = new Date();
         await this.integrationProjectRepository.save(project);
 
+        this.logger.log(`[AWS] Successfully scanned account ${project.externalId}`);
       } catch (err) {
         this.logger.warn(`[AWS] Failed to scan ${project.externalId}`, err);
       }
     }
   }
 
-  async processAwsLogs({ prefix = 'AWSLogs/', projectId, userId = 1, user }: { prefix: string; projectId: number; userId?: number, user: User }) {
-    const rawLogs = await this.s3Service.fetchCloudTrailLogs(prefix);
-    this.logger.log("CEPLM", JSON.stringify(rawLogs, null, 4));
+  async processAwsLogs({ prefix = 'AWSLogs', projectId, userId = 1, user, bucket }: { prefix: string; projectId: number; userId?: number, user: User, bucket?: string }) {
+    const rawLogs = await this.s3Service.fetchCloudTrailLogs(prefix, bucket);
+    this.logger.log(`Processing ${rawLogs.length} CloudTrail log files`);
 
-    let combinedTextLog = '';
-
-    for (const logContent of rawLogs) {
-      combinedTextLog += `${logContent}\n\n`;
+    if (rawLogs.length === 0) {
+      this.logger.warn(`No CloudTrail logs found to process`);
+      return [];
     }
 
-    const filename = `aws-${Date.now()}.txt`;
+    // Combine all logs into a single file
+    const combinedTextLog = rawLogs.join('\n\n');
+
+    const filename = `aws-cloudtrail-${Date.now()}.txt`;
     const fakeFile: Express.Multer.File = {
       originalname: filename,
       mimetype: 'text/plain',
@@ -177,14 +197,16 @@ export class AWSScanService {
       path: '',
     };
 
-    return this.complianceService.create(
+    const result = await this.complianceService.create(
       {
         reportData: {
-          description: 'Logs from AWS',
+          description: `AWS CloudTrail Logs Analysis`,
           details: {
             source: 'AWS CloudTrail',
             prefix,
+            logFilesProcessed: rawLogs.length,
             ingestedAt: new Date().toISOString(),
+            bucket: bucket || 'unknown',
           },
         },
         userId,
@@ -194,7 +216,41 @@ export class AWSScanService {
       },
       fakeFile,
       user,
-      'aws-logs',
+      'aws',
     );
+
+    this.logger.log(`Created single compliance report from ${rawLogs.length} CloudTrail log files`);
+    return [result];
+  }
+
+  private async discoverCloudTrailBucket(creds: any, region: string, accountId: string): Promise<string> {
+    try {
+      const possibleBuckets = [
+        // Try with common suffixes first
+        `aws-cloudtrail-logs-${accountId}-f9b46a0f`,
+        `aws-cloudtrail-logs-${accountId}-50f5a902`,
+        `aws-cloudtrail-logs-${accountId}-b0a4ded3`,
+        // Fallback patterns
+        `aws-cloudtrail-logs-${accountId}`,
+        `cloudtrail-logs-${accountId}`,
+        `audit-logs-${accountId}`,
+      ];
+
+      for (const bucketName of possibleBuckets) {
+        try {
+          await this.s3Service.checkBucketAccess(bucketName, creds, region);
+          return bucketName;
+        } catch (err) {
+          this.logger.warn(`[AWS] Bucket ${bucketName} not accessible for account ${accountId}`);
+          continue;
+        }
+      }
+
+      this.logger.warn(`[AWS] No CloudTrail bucket found for account ${accountId}`);
+      return `aws-cloudtrail-logs-${accountId}`;
+    } catch (error) {
+      this.logger.warn(`[AWS] Failed to discover CloudTrail bucket for account ${accountId}`);
+      return `aws-cloudtrail-logs-${accountId}`;
+    }
   }
 }

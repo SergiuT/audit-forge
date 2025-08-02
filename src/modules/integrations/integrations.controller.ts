@@ -116,18 +116,19 @@ export class IntegrationsController {
       externalId?: string;
       region?: string;
       projectId: string;
-      userId: number;
     },
+    @User() user,
   ) {
     this.logger.log(`Starting AWS role connection`, {
       projectId: body.projectId,
-      userId: body.userId,
+      userId: user.id,
       region: body.region
     });
 
     try {
       const result = await this.awsScanService.connectAWSRole({
         ...body,
+        userId: user.id,
       });
       this.logger.log(`Successfully connected AWS role for project ${body.projectId}`);
       return result;

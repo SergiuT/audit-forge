@@ -95,10 +95,11 @@ export class OpenAIService {
       temperature?: number;
       maxTokens?: number;
       model?: string;
+      attempts?: number;
     } = {}
   ): Promise<string> {
     const model = options.model || this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
-    const cacheKey = this.cacheService.generateAIKey(`${systemPrompt}:${input}`, model);
+    const cacheKey = this.cacheService.generateAIKey(`${systemPrompt}:${input}${options.attempts}`, model);
 
     return this.cacheService.getOrSet(
       cacheKey,
