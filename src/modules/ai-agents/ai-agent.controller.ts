@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Query, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Query, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { AIAgentService } from './ai-agent.service';
 import { User } from '@/common/decorators/user.decorator';
 
@@ -20,38 +20,56 @@ export class AIAgentController {
 
     @Post('chat')
     async chat(@Body() request: ChatRequest, @User() user): Promise<ChatResponse> {
-        this.logger.log(`Agent chat request: ${request.message}`);
+        this.logger.log(`Starting AI agent chat for user ${user.id}`, {
+            message: request.message.substring(0, 100) + (request.message.length > 100 ? '...' : ''),
+            projectId: request.projectId
+        });
 
-        const response = await this.aiAgentService.processMessage(
-            request.message,
-            { projectId: request.projectId, user }
-        );
+        try {
+            const response = await this.aiAgentService.processMessage(
+                request.message,
+                { projectId: request.projectId, user }
+            );
 
-        return {
-            response,
-            timestamp: new Date().toISOString(),
-        };
+            this.logger.log(`Successfully processed AI agent chat for user ${user.id}`);
+            return {
+                response,
+                timestamp: new Date().toISOString(),
+            };
+        } catch (error) {
+            this.logger.error(`Failed to process AI agent chat for user ${user.id}`, error.stack);
+            throw new InternalServerErrorException('Failed to process AI agent chat');
+        }
     }
 
     @Post('scan')
     async quickScan(@Query('projectId') projectId: string, @User() user): Promise<ChatResponse> {
-        if (!projectId) {
+        this.logger.log(`Starting AI agent quick scan for project ${projectId} by user ${user.id}`);
+
+        try {
+            if (!projectId) {
+                this.logger.warn(`No projectId provided for AI agent quick scan by user ${user.id}`);
+                return {
+                    response: 'Please provide a projectId query parameter.',
+                    timestamp: new Date().toISOString(),
+                };
+            }
+
+            const message = `Please scan all GitHub repositories for compliance issues in project ${projectId}`;
+
+            const response = await this.aiAgentService.processMessage(
+                message,
+                { projectId, user }
+            );
+
+            this.logger.log(`Successfully completed AI agent quick scan for project ${projectId} by user ${user.id}`);
             return {
-                response: 'Please provide a projectId query parameter.',
+                response,
                 timestamp: new Date().toISOString(),
             };
+        } catch (error) {
+            this.logger.error(`Failed to process AI agent quick scan for project ${projectId} by user ${user.id}`, error.stack);
+            throw new InternalServerErrorException('Failed to process AI agent quick scan');
         }
-
-        const message = `Please scan all GitHub repositories for compliance issues in project ${projectId}`;
-
-        const response = await this.aiAgentService.processMessage(
-            message,
-            { projectId, user }
-        );
-
-        return {
-            response,
-            timestamp: new Date().toISOString(),
-        };
     }
 } 

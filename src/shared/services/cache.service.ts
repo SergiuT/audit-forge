@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import Redis from 'ioredis';
 
 @Injectable()
-export class CacheService {
+export class CacheService implements OnModuleDestroy, OnApplicationShutdown {
     private readonly logger = new Logger(CacheService.name);
     private readonly redisClient: Redis;
     private readonly isEnabled: boolean;
@@ -130,6 +130,26 @@ export class CacheService {
                 entriesCount: 0,
                 memoryUsage: 'Error'
             };
+        }
+    }
+
+    async onModuleDestroy(): Promise<void> {
+        await this.disconnect();
+    }
+      
+    async onApplicationShutdown(signal: string): Promise<void> {
+        this.logger.log(`Application shutdown signal received: ${signal}`);
+        await this.disconnect();
+    }
+
+    private async disconnect(): Promise<void> {
+        if (this.isEnabled && this.redisClient && this.redisClient.status === 'ready') {
+          try {
+            await this.redisClient.quit();
+            this.logger.log('Redis connection closed gracefully');
+          } catch (err) {
+            this.logger.error('Error closing Redis connection', err);
+          }
         }
     }
 } 

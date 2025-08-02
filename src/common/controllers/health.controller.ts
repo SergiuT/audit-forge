@@ -1,10 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { HealthService, SystemHealth } from '@/shared/services/health.service';
 
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
+    private readonly logger = new Logger(HealthController.name);
+
     constructor(private readonly healthService: HealthService) { }
 
     @Get()
@@ -21,15 +23,24 @@ export class HealthController {
         description: 'System is unhealthy'
     })
     async getHealth(): Promise<SystemHealth> {
-        const health = await this.healthService.getSystemHealth();
+        this.logger.log(`Starting system health check`);
 
-        // Return appropriate HTTP status based on health
-        if (health.overall === 'unhealthy') {
-            // This could be handled with proper HTTP status codes in a real implementation
-            // For now, we'll return the data and let the client decide
+        try {
+            const health = await this.healthService.getSystemHealth();
+
+            // Return appropriate HTTP status based on health
+            if (health.overall === 'unhealthy') {
+                this.logger.warn(`System health check returned unhealthy status`);
+                // This could be handled with proper HTTP status codes in a real implementation
+                // For now, we'll return the data and let the client decide
+            }
+
+            this.logger.log(`Successfully completed system health check, status: ${health.overall}`);
+            return health;
+        } catch (error) {
+            this.logger.error(`Failed to get system health`, error.stack);
+            throw new InternalServerErrorException('Failed to get system health');
         }
-
-        return health;
     }
 
     @Get('metrics')
@@ -42,7 +53,16 @@ export class HealthController {
         description: 'System metrics retrieved successfully'
     })
     async getMetrics() {
-        return this.healthService.getMetrics();
+        this.logger.log(`Starting system metrics fetch`);
+
+        try {
+            const metrics = await this.healthService.getMetrics();
+            this.logger.log(`Successfully fetched system metrics`);
+            return metrics;
+        } catch (error) {
+            this.logger.error(`Failed to get system metrics`, error.stack);
+            throw new InternalServerErrorException('Failed to get system metrics');
+        }
     }
 
     @Get('ready')
@@ -59,13 +79,21 @@ export class HealthController {
         description: 'System is not ready'
     })
     async getReadiness(): Promise<{ status: string; ready: boolean }> {
-        const health = await this.healthService.getSystemHealth();
-        const ready = health.overall !== 'unhealthy';
+        this.logger.log(`Starting readiness probe`);
 
-        return {
-            status: ready ? 'ready' : 'not ready',
-            ready,
-        };
+        try {
+            const health = await this.healthService.getSystemHealth();
+            const ready = health.overall !== 'unhealthy';
+
+            this.logger.log(`Readiness probe completed, ready: ${ready}`);
+            return {
+                status: ready ? 'ready' : 'not ready',
+                ready,
+            };
+        } catch (error) {
+            this.logger.error(`Failed to perform readiness probe`, error.stack);
+            throw new InternalServerErrorException('Failed to perform readiness probe');
+        }
     }
 
     @Get('live')
@@ -78,9 +106,18 @@ export class HealthController {
         description: 'System is alive'
     })
     async getLiveness(): Promise<{ status: string; timestamp: string }> {
-        return {
-            status: 'alive',
-            timestamp: new Date().toISOString(),
-        };
+        this.logger.log(`Starting liveness probe`);
+
+        try {
+            const result = {
+                status: 'alive',
+                timestamp: new Date().toISOString(),
+            };
+            this.logger.log(`Liveness probe completed successfully`);
+            return result;
+        } catch (error) {
+            this.logger.error(`Failed to perform liveness probe`, error.stack);
+            throw new InternalServerErrorException('Failed to perform liveness probe');
+        }
     }
 } 
