@@ -135,7 +135,7 @@ export class AIAgentService {
                             description: control.description || control.title || 'Control match found',
                             severity: this.mapSeverity(control?.severity),
                             category: control.category || 'compliance',
-                            tags: control.tags || [],
+                            tags: control?.tags || event?.tags || [],
                             mappedControls: [ruleId],
                         });
                     }
