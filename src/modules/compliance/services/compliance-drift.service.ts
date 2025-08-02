@@ -5,7 +5,7 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { ComplianceReport } from "../entities/compliance-report.entity";
-import { ComplianceAnalysis, DriftAnalysis } from "@/shared/types/types";
+import { ComplianceAnalysis, DriftAnalysis, ReportSource } from "@/shared/types/types";
 
 @Injectable()
 export class ComplianceDriftService {
@@ -13,7 +13,7 @@ export class ComplianceDriftService {
     @InjectRepository(ComplianceReport)
     private complianceReportRepository: Repository<ComplianceReport>,
     private readonly openaiService: OpenAIService,
-  ) {}
+  ) { }
 
   async compareWithPrevious(
     projectId: number,
@@ -23,10 +23,11 @@ export class ComplianceDriftService {
       categoryScores: Record<string, number>;
       controlScores: Record<string, number>;
     },
-    integrationId?: string
+    integrationId?: string,
+    source?: ReportSource
   ): Promise<DriftAnalysis | null> {
-    const previousReport = await this.findPreviousReport(projectId, integrationId);
-    
+    const previousReport = await this.findPreviousReport(projectId, integrationId, source);
+
     if (!previousReport) {
       return null;
     }
@@ -41,7 +42,7 @@ export class ComplianceDriftService {
     return this.calculateDrift(currentAnalysis, previousAnalysis);
   }
 
-  private async findPreviousReport(projectId: number, integrationId?: string): Promise<ComplianceReport | null> {
+  private async findPreviousReport(projectId: number, integrationId?: string, source?: ReportSource): Promise<ComplianceReport | null> {
     if (integrationId) {
       return this.complianceReportRepository
         .createQueryBuilder('report')
@@ -50,6 +51,18 @@ export class ComplianceDriftService {
         .andWhere(`report.reportData->'details'->>'integrationId' = :integrationId`, { integrationId })
         .orderBy('report.createdAt', 'DESC')
         .getOne();
+    }
+
+    // If source is provided, filter by source to only compare reports from the same source
+    if (source) {
+      return this.complianceReportRepository.findOne({
+        where: {
+          project: { id: projectId },
+          source: source
+        },
+        order: { createdAt: 'DESC' },
+        relations: ['findings', 'findings.actions'],
+      });
     }
 
     return this.complianceReportRepository.findOne({

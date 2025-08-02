@@ -164,7 +164,7 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     roles: ['user', 'admin']
   },
   '/integrations/github/callback': {
-    auth: true,
+    auth: false,
     rateLimit: { type: 'ip', maxRequests: 5, windowMs: 60000 },
     roles: ['user', 'admin']
   },
@@ -203,7 +203,7 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     requireProjectAccess: true
   },
   '/integrations/gcp/callback': {
-    auth: true,
+    auth: false,
     rateLimit: { type: 'ip', maxRequests: 5, windowMs: 60000 },
     roles: ['user', 'admin']
   },

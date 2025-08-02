@@ -41,7 +41,7 @@ class EnvironmentVariables {
 
   @IsString()
   @IsOptional()
-  AWS_ACCESS_KEY_ID?: string;
+  AWS_ACCESS_KEY?: string;
 
   @IsString()
   @IsOptional()
@@ -115,7 +115,7 @@ export function validate(config: Record<string, unknown>) {
       JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
       JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION || '7d',
       AWS_REGION: process.env.AWS_REGION,
-      AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+      AWS_ACCESS_KEY: process.env.AWS_ACCESS_KEY,
       AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
       S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
       CLOUDTRAIL_BUCKET_NAME: process.env.CLOUDTRAIL_BUCKET_NAME,

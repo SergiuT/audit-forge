@@ -314,7 +314,7 @@ export class GCPScanService {
       },
       fakeFile,
       user,
-      'gcp-logs',
+      'gcp',
     );
   }
 

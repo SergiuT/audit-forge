@@ -86,24 +86,25 @@ export class ComplianceService {
         controlScores: getControlScores(analysisFindings),
       };
       // 3. Compare with previous report (if exists)
+      const source = determineReportSourceFromPrefix(prefix || 'other');
       const drift = await this.driftService.compareWithPrevious(
         createReportDto.projectId,
         analysis,
-        createReportDto.reportData?.integrationId
+        createReportDto.reportData?.integrationId,
+        source
       );
 
       // 4. Create report
       const reportData: CreateComplianceReportDto = {
         ...createReportDto,
         fileDataKey: fileData.key,
-        source: determineReportSourceFromPrefix(prefix || 'other'),
+        source: source,
         complianceScore: analysis.complianceScore,
         categoryScores: analysis.categoryScores,
         controlScores: analysis.controlScores,
         driftComparison: drift || undefined,
       };
 
-      const source = determineReportSourceFromPrefix(prefix || 'other')
       const report = await this.reportService.create(reportData, user.id, source);
 
       // this.logger.log(`Report: ${JSON.stringify(report, null, 2)}`);
@@ -140,7 +141,7 @@ export class ComplianceService {
       await this.checklistService.createChecklistItemsForReport(report);
 
       // 6. Generate AI summary asynchronously
-      this.generateSummaryAsync(report.id, fileData.content, user).catch(err => 
+      this.generateSummaryAsync(report.id, fileData.content, user).catch(err =>
         this.logger.error('Failed to generate AI summary', err)
       );
 
