@@ -109,18 +109,18 @@ export class IntegrationsController {
   }
 
   // AWS scan
-  @Post('/aws/connect-role')
+  @Post('projects/:projectId/aws/connect-role')
   async connectAWSViaRole(
     @Body() body: {
       assumeRoleArn: string;
       externalId?: string;
       region?: string;
-      projectId: string;
     },
+    @Param('projectId') projectId: string,
     @User() user,
   ) {
     this.logger.log(`Starting AWS role connection`, {
-      projectId: body.projectId,
+      projectId,
       userId: user.id,
       region: body.region
     });
@@ -128,26 +128,27 @@ export class IntegrationsController {
     try {
       const result = await this.awsScanService.connectAWSRole({
         ...body,
+        projectId,
         userId: user.id,
       });
-      this.logger.log(`Successfully connected AWS role for project ${body.projectId}`);
+      this.logger.log(`Successfully connected AWS role for project ${projectId}`);
       return result;
     } catch (error) {
-      this.logger.error(`Failed to connect AWS role for project ${body.projectId}`, error.stack);
+      this.logger.error(`Failed to connect AWS role for project ${projectId}`, error.stack);
       throw new InternalServerErrorException('Failed to connect AWS role');
     }
   }
 
   @Get('projects/:id/scan-history')
-  async getScanHistory(@Param('id') id: string, @User() user) {
-    this.logger.log(`Starting scan history fetch for project ${id} by user ${user.id}`);
+  async getScanHistory(@Param('id') id: string) {
+    this.logger.log(`Starting scan history fetch for project ${id}`);
 
     try {
-      const history = await this.integrationsService.getScanHistoryForProject(id, user);
-      this.logger.log(`Successfully fetched scan history for project ${id} by user ${user.id}`);
+      const history = await this.integrationsService.getScanHistoryForProject(id);
+      this.logger.log(`Successfully fetched scan history for project ${id}`);
       return history;
     } catch (error) {
-      this.logger.error(`Failed to fetch scan history for project ${id} by user ${user.id}`, error.stack);
+      this.logger.error(`Failed to fetch scan history for project ${id}`, error.stack);
       throw new InternalServerErrorException('Failed to fetch scan history');
     }
   }
@@ -170,9 +171,9 @@ export class IntegrationsController {
   }
 
   // GitHub OAuth endpoints
-  @Get('/github/auth-url')
+  @Get('projects/:projectId/github/auth-url')
   async getGitHubAuthUrl(
-    @Query('projectId') projectId: string,
+    @Param('projectId') projectId: string,
     @User('id') userId: string,
   ) {
     this.logger.log(`Starting GitHub auth URL generation for project ${projectId} by user ${userId}`);
@@ -187,9 +188,9 @@ export class IntegrationsController {
     }
   }
 
-  @Get('/gcp/auth-url')
+  @Get('projects/:projectId/gcp/auth-url')
   async getGCPAuthUrl(
-    @Query('projectId') projectId: string,
+    @Param('projectId') projectId: string,
     @User('id') userId: string,
   ) {
     this.logger.log(`Starting GCP auth URL generation for project ${projectId} by user ${userId}`);

@@ -53,7 +53,6 @@ export class GCPScanService {
       redirectUri
     );
 
-    // Create state object with projectId and userId
     const state = createOAuthState(userId, projectId, true);
 
     const authUrl = oauth2Client.generateAuthUrl({

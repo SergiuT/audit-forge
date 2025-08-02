@@ -174,7 +174,7 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     roles: ['user', 'admin'],
     requireProjectAccess: true
   },
-  '/integrations/aws/connect-role': {
+  '/integrations/projects/:projectId/aws/connect-role': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
     roles: ['user', 'admin']
@@ -190,24 +190,21 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     roles: ['user', 'admin'],
     requireProjectAccess: true
   },
-  '/integrations/github/auth-url': {
+  '/integrations/projects/:projectId/github/auth-url': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 5, windowMs: 60000 },
-    roles: ['user', 'admin']
+    roles: ['user', 'admin'],
+    requireProjectAccess: true
   },
-  '/integrations/gcp/auth-url': {
+  '/integrations/projects/:projectId/gcp/auth-url': {
     auth: true,
-    rateLimit: { type: 'user', maxRequests: 5, windowMs: 60000 },
-    roles: ['user', 'admin']
+    rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
+    roles: ['user', 'admin'],
+    requireProjectAccess: true
   },
   '/integrations/gcp/callback': {
     auth: true,
     rateLimit: { type: 'ip', maxRequests: 5, windowMs: 60000 },
-    roles: ['user', 'admin']
-  },
-  '/integrations/gcp/connect': {
-    auth: true,
-    rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
     roles: ['user', 'admin']
   },
   '/integrations/projects/:projectId/gcp/scan': {

@@ -52,11 +52,10 @@ export class IntegrationsService {
     return { ...integration, decryptedCredentials: decrypted };
   }
 
-  async getScanHistoryForProject(integrationId: string, user: User): Promise<any[]> {
+  async getScanHistoryForProject(projectId: string): Promise<any[]> {
     const rawReports = await this.complianceReportRepository
     .createQueryBuilder('report')
-    .where(`report."reportData"->'details'->>'integrationId' = :integrationId`, { integrationId })
-    .andWhere('report.projectId IN (:...projectIds)', { projectIds: user.projects.map(p => p.id) })
+    .where('report.projectId = :projectId', { projectId })
     .orderBy('report.createdAt', 'DESC')
     .getMany();
   
