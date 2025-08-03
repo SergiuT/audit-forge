@@ -1,5 +1,11 @@
-// entities/compliance-action.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { ComplianceFinding } from './compliance-finding.entity';
 
 @Entity()
@@ -19,12 +25,14 @@ export class ComplianceAction {
   @Column()
   findingId: number;
 
-  @ManyToOne(() => ComplianceFinding, (finding) => finding.actions, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ComplianceFinding, (finding) => finding.actions, {
+    onDelete: 'CASCADE',
+  })
   finding: ComplianceFinding;
 
-  @Column()
+  @CreateDateColumn()
   createdAt: Date;
-  
-  @Column()
+
+  @UpdateDateColumn()
   updatedAt: Date;
 }
