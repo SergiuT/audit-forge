@@ -113,7 +113,7 @@ export class ChecklistController {
     try {
       const parsedDate = update.dueDate ? new Date(update.dueDate) : undefined;
 
-      const updatedItem = await this.checklistService.updateChecklistItem(user.id, +reportId, controlId, {
+      const updatedItem = await this.checklistService.updateChecklistItem(+reportId, controlId, {
         ...update,
         dueDate: parsedDate,
       });

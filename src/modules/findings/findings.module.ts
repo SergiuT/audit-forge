@@ -10,9 +10,6 @@ import { PdfService } from '@/shared/services/pdf.service';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
 import { ControlChecklistItem } from '../checklist/entities/control-checklist.entity';
 import { ChecklistService } from '../checklist/checklist.service';
-import { AuditTrailModule } from '../audit-trail/audit.module';
-import { AuditTrailService } from '../audit-trail/audit.service';
-import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
 
 @Module({
   imports: [
@@ -21,10 +18,9 @@ import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
       TagExplanation,
       ComplianceReport,
       ControlChecklistItem,
-      AuditEvent
     ]),
   ],
   controllers: [FindingsController],
-  providers: [FindingsService, OpenAIService, PdfService, ChecklistService, AuditTrailService],
+  providers: [FindingsService, OpenAIService, PdfService, ChecklistService],
 })
 export class FindingsModule {}

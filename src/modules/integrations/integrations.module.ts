@@ -15,8 +15,6 @@ import { ComplianceReport } from '../compliance/entities/compliance-report.entit
 import { AWSScanService } from './services/aws-scan.service';
 import { GCPScanService } from './services/gcp-scan.service';
 import { GithubScanService } from './services/github-scan.service';
-import { AuditTrailService } from '../audit-trail/audit.service';
-import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
 
 @Module({
   imports: [
@@ -24,7 +22,6 @@ import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
       Integration,
       IntegrationProject,
       ComplianceReport,
-      AuditEvent
     ]),
     ComplianceModule
   ],
@@ -39,7 +36,6 @@ import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
     AWSScanService,
     GCPScanService,
     GithubScanService,
-    AuditTrailService
   ],
   exports: [
     IntegrationsService,

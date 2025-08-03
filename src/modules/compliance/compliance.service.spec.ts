@@ -11,7 +11,6 @@ import { S3Service } from '@/shared/services/s3.service';
 import { ChecklistService } from '../checklist/checklist.service';
 import { PdfService } from '@/shared/services/pdf.service';
 import { OpenAIService } from '@/shared/services/openai.service';
-import { AuditTrailService } from '../audit-trail/audit.service';
 import { createTestProject, createTestComplianceReport, createTestUser } from '@/test/setup';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SeverityOptions } from '@/shared/types/types';
@@ -27,7 +26,6 @@ describe('ComplianceService', () => {
     let projectRepository: Repository<Project>;
     let s3Service: S3Service;
     let openaiService: OpenAIService;
-    let auditTrailService: AuditTrailService;
     let complianceReportService: ComplianceReportService;
 
     const mockComplianceReportRepository = {
@@ -130,10 +128,6 @@ describe('ComplianceService', () => {
         getEmbedding: jest.fn(),
     };
 
-    const mockAuditTrailService = {
-        logEvent: jest.fn(),
-    };
-
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
@@ -177,11 +171,7 @@ describe('ComplianceService', () => {
                 {
                     provide: ComplianceReportService,
                     useValue: mockComplianceReportService,
-                },
-                {
-                    provide: AuditTrailService,
-                    useValue: mockAuditTrailService,
-                },
+                }
             ],
         }).compile();
 
@@ -193,7 +183,6 @@ describe('ComplianceService', () => {
         projectRepository = module.get<Repository<Project>>(getRepositoryToken(Project));
         s3Service = module.get<S3Service>(S3Service);
         openaiService = module.get<OpenAIService>(OpenAIService);
-        auditTrailService = module.get<AuditTrailService>(AuditTrailService);
         complianceReportService = module.get<ComplianceReportService>(ComplianceReportService);
     });
 

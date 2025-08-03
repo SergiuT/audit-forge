@@ -7,8 +7,6 @@ import {
   ChecklistStatus,
   ControlChecklistItem,
 } from './entities/control-checklist.entity';
-import { AuditTrailService } from '../audit-trail/audit.service';
-import { AuditAction } from '../audit-trail/entities/audit-event.entity';
 import { User } from '../auth/entities/user.entity';
 import { PineconeService } from '@/shared/services/pinecone.service';
 
@@ -24,8 +22,6 @@ export class ChecklistService {
 
     @InjectRepository(ComplianceReport)
     private readonly reportRepository: Repository<ComplianceReport>,
-
-    private readonly auditTrailService: AuditTrailService,
 
     private readonly pineconeService: PineconeService,
   ) {}
@@ -342,7 +338,6 @@ export class ChecklistService {
   }
 
   async updateChecklistItem(
-    userId: string,
     reportId: number,
     controlId: string,
     update: {
@@ -367,42 +362,6 @@ export class ChecklistService {
       item.statusUpdatedAt = new Date();
     }
 
-    const savedItem = await this.checklistRepository.save(item);
-
-    await this.auditTrailService.logEvent({
-      userId: Number(userId),
-      action: AuditAction.CHECKLIST_UPDATED,
-      resourceType: 'checklist',
-      resourceId: item.controlId,
-      projectId: item.projectId,
-      metadata: {
-        reportId,
-        before: {
-          assignedTo: item.assignedTo,
-          dueDate: item.dueDate,
-          status: item.status,
-        },
-        after: {
-          assignedTo: savedItem.assignedTo,
-          dueDate: savedItem.dueDate,
-          status: savedItem.status,
-        },
-      },
-    });
-
-    if (update.assignedTo && update.assignedTo !== item.assignedTo) {
-      await this.auditTrailService.logEvent({
-        userId: Number(userId),
-        projectId: item.projectId,
-        action: AuditAction.CONTROL_ASSIGNED,
-        resourceType: 'ChecklistItem',
-        resourceId: item.id.toString(),
-        metadata: {
-          assignedTo: update.assignedTo,
-        },
-      });
-    }
-
-    return savedItem
+    return await this.checklistRepository.save(item);
   }
 }

@@ -226,18 +226,6 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     roles: ['user', 'admin']
   },
 
-  // AUDIT TRAIL ROUTES
-  '/audit-trail': {
-    auth: true,
-    rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
-    roles: ['user', 'admin']
-  },
-  '/audit-trail/timeline': {
-    auth: true,
-    rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
-    roles: ['user', 'admin']
-  },
-
   // PROJECT ROUTES
   '/projects': {
     auth: true,

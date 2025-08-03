@@ -6,8 +6,6 @@ import { ChecklistService } from './checklist.service';
 import { ChecklistController } from './checklist-controller';
 import { ControlChecklistItem } from './entities/control-checklist.entity';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
-import { AuditTrailService } from '../audit-trail/audit.service';
-import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
 
 @Module({
   imports: [
@@ -15,11 +13,10 @@ import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
       ControlChecklistItem,
       ComplianceFinding,
       ComplianceReport,
-      AuditEvent
     ]),
   ],
   controllers: [ChecklistController],
-  providers: [ChecklistService, AuditTrailService],
+  providers: [ChecklistService],
   exports: [ChecklistService],
 })
 export class ChecklistModule {}

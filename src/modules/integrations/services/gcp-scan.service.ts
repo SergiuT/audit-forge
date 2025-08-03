@@ -11,8 +11,6 @@ import { ComplianceService } from "@/modules/compliance/compliance.service";
 import { ConfigService } from "@nestjs/config";
 import { AWSSecretManagerService } from "@/shared/services/aws-secret.service";
 import { IntegrationsService } from "../integrations.service";
-import { AuditTrailService } from "@/modules/audit-trail/audit.service";
-import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
 import { OAuth2Client } from 'google-auth-library';
 import { RetryService } from '@/shared/services/retry.service';
 import { CircuitBreakerService } from '@/shared/services/circuit-breaker.service';
@@ -34,7 +32,6 @@ export class GCPScanService {
     private readonly awsSecretManagerService: AWSSecretManagerService,
     private readonly complianceService: ComplianceService,
     private configService: ConfigService,
-    private readonly auditTrailService: AuditTrailService,
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
   ) { }
@@ -262,30 +259,15 @@ export class GCPScanService {
           ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
           : decrypt(integration.credentials, this.encryptionKey);
 
-        // Call your existing log ingestion method
         await this.processGcpLogs({
           credentialsJson: token,
           gcpProjectId: project.externalId,
-          filter: 'resource.type="gce_instance"', // or allow filter override later
           projectId: +projectId,
           user,
           tokenType: integration.useManager ? 'secretsManager' : 'aes',
           integrationId: integration.id,
         });
 
-        await this.auditTrailService.logEvent({
-          userId: user.id,
-          projectId: +projectId,
-          action: AuditAction.SCAN_COMPLETED,
-          resourceType: 'IntegrationProject',
-          resourceId: integration.id,
-          metadata: {
-            type: IntegrationType.GCP,
-            gcpProjectId: project.externalId,
-          },
-        });
-
-        // Update scan metadata
         project.lastScannedAt = new Date();
         await this.integrationProjectRepository.save(project);
       } catch (err) {
@@ -350,7 +332,6 @@ export class GCPScanService {
     gcpProjectId,
     credentialsJson,
     projectId,
-    filter,
     user,
     tokenType,
     integrationId,
@@ -358,14 +339,13 @@ export class GCPScanService {
   }: {
     gcpProjectId: string;
     credentialsJson: string;
-    filter: string;
     projectId: number;
     user: User;
     integrationId: string;
     tokenType: 'aes' | 'secretsManager';
     scannedAt?: Date;
   }) {
-    const logContent = await this.fetchLogsFromGCP(gcpProjectId, filter, 50, credentialsJson);
+    const logContent = await this.fetchLogsFromGCP(gcpProjectId, 50, credentialsJson);
 
     const filename = `gcp-${Date.now()}.txt`;
     const fakeFile: Express.Multer.File = {
@@ -406,7 +386,6 @@ export class GCPScanService {
 
   async fetchLogsFromGCP(
     gcpProjectId: string,
-    filter: string,
     limit = 50,
     credentialsJson: string
   ): Promise<string> {

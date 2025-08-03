@@ -9,7 +9,6 @@ import { FindingsModule } from './modules/findings/findings.module';
 import { ChecklistModule } from './modules/checklist/checklist.module';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ProjectsModule } from './modules/project/project.module';
-import { AuditTrailModule } from './modules/audit-trail/audit.module';
 import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthController } from './common/controllers/health.controller';
@@ -76,7 +75,6 @@ import { SecurityGuard } from './common/guards/security.guard';
     ChecklistModule,
     IntegrationsModule,
     ProjectsModule,
-    AuditTrailModule,
     AIAgentsModule
   ],
   controllers: [

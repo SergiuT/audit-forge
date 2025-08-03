@@ -1,5 +1,3 @@
-import { AuditTrailService } from "@/modules/audit-trail/audit.service";
-import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
@@ -17,7 +15,6 @@ export class ComplianceReportService {
     @InjectRepository(ComplianceReport)
     private complianceReportRepository: Repository<ComplianceReport>,
 
-    private readonly auditTrailService: AuditTrailService,
     private readonly cacheService: CacheService,
     private readonly fileService: ComplianceFileService,
   ) {}
@@ -58,18 +55,6 @@ export class ComplianceReportService {
   async create(reportData: CreateComplianceReportDto, userId: number, source: string): Promise<ComplianceReport> {
     const reportEntity = this.complianceReportRepository.create(reportData);        
     const savedReport = await this.complianceReportRepository.save(reportEntity);
-
-    await this.auditTrailService.logEvent({
-      userId,
-      projectId: reportData.projectId,
-      action: AuditAction.REPORT_CREATED,
-      resourceType: 'ComplianceReport',
-      resourceId: savedReport.id.toString(),
-      metadata: {
-        source,
-        complianceScore: savedReport.complianceScore,
-      },
-    });
 
     return savedReport;
   }

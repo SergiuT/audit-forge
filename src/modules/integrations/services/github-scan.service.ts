@@ -15,8 +15,6 @@ import { CreateComplianceReportDto } from '@/modules/compliance/dto/create-compl
 import { Readable } from 'stream';
 import { IntegrationsService } from "../integrations.service";
 import { ComplianceService } from "@/modules/compliance/compliance.service";
-import { AuditTrailService } from "@/modules/audit-trail/audit.service";
-import { AuditAction } from "@/modules/audit-trail/entities/audit-event.entity";
 import { RetryService } from "@/shared/services/retry.service";
 import { CircuitBreakerService } from "@/shared/services/circuit-breaker.service";
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
@@ -39,7 +37,6 @@ export class GithubScanService {
     private readonly complianceService: ComplianceService,
     private readonly awsSecretManagerService: AWSSecretManagerService,
     private configService: ConfigService,
-    private readonly auditTrailService: AuditTrailService,
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
   ) { }
@@ -202,18 +199,6 @@ export class GithubScanService {
           useManager: integration?.useManager,
           integrationId: integration?.id,
           user,
-        });
-
-        await this.auditTrailService.logEvent({
-          userId: Number(integration.userId),
-          projectId: +projectId,
-          action: AuditAction.SCAN_COMPLETED,
-          resourceType: 'IntegrationProject',
-          resourceId: integration.id,
-          metadata: {
-            type: IntegrationType.GITHUB,
-            githubProjectId: project.externalId,
-          },
         });
       } catch (err) {
         this.logger.warn(`Failed to process run ${lastRun.id} for ${project.externalId}`, err);

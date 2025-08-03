@@ -13,8 +13,6 @@ import { ChecklistModule } from '../checklist/checklist.module';
 import { ComplianceRule } from './entities/compliance-rule.entity';
 import { Project } from '../project/entities/project.entity';
 import { NvdService } from '@/shared/services/nvd.service';
-import { AuditTrailService } from '../audit-trail/audit.service';
-import { AuditEvent } from '../audit-trail/entities/audit-event.entity';
 import { ComplianceReportService } from './services/compliance-report.service';
 import { ComplianceDriftService } from './services/compliance-drift.service';
 import { ComplianceFileService } from './services/compliance-file.service';
@@ -28,8 +26,7 @@ import { AIAgentService } from '../ai-agents/ai-agent.service';
       ComplianceFinding,
       ComplianceAction,
       ComplianceRule,
-      Project,
-      AuditEvent
+      Project
     ]),
     ChecklistModule,
   ],
@@ -40,7 +37,6 @@ import { AIAgentService } from '../ai-agents/ai-agent.service';
     OpenAIService,
     PdfService,
     NvdService,
-    AuditTrailService,
     ComplianceReportService,
     ComplianceDriftService,
     ComplianceFileService,

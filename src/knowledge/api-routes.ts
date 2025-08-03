@@ -350,22 +350,6 @@ Failed authentication returns 401 Unauthorized.
 **Response:** Updated checklist item
 **Use Case:** Task assignment, progress tracking
 
-## Audit Trail
-
-### GET /audit-trail
-**Purpose:** Get audit events with filtering capabilities
-**Authentication:** JWT required
-**Query Params:** GetEventsQueryDto filters
-**Response:** Array of audit events
-**Use Case:** Compliance audit, activity tracking
-
-### GET /audit-trail/timeline
-**Purpose:** Get grouped timeline of audit events
-**Authentication:** JWT required
-**Query Params:** GetEventsQueryDto filters
-**Response:** Timeline-grouped audit events
-**Use Case:** Activity visualization, compliance reporting
-
 ## AI Agent System
 
 ### POST /ai-agent/chat
