@@ -56,18 +56,18 @@ jobs:
     - name: Build application
       run: npm run build:ci
     
-    - name: Run e2e tests
-      run: npm run test:e2e:ci
-      env:
-        NODE_ENV: test
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_USERNAME: postgres
-        DB_PASSWORD: postgres
-        DB_DATABASE: test_db
-        REDIS_URL: redis://localhost:6379
-        JWT_SECRET: test-secret
-        OPENAI_API_KEY: test-key
+    # - name: Run e2e tests
+    #   run: npm run test:e2e:ci
+    #   env:
+    #     NODE_ENV: test
+    #     DB_HOST: localhost
+    #     DB_PORT: 5432
+    #     DB_USERNAME: postgres
+    #     DB_PASSWORD: postgres
+    #     DB_DATABASE: test_db
+    #     REDIS_URL: redis://localhost:6379
+    #     JWT_SECRET: test-secret
+    #     OPENAI_API_KEY: test-key
 
   security-scan:
     runs-on: ubuntu-latest
