@@ -29,7 +29,7 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
   },
   '/auth/login': {
     auth: false,
-    rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 } // 15 min
+    rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }
   },
   '/auth/logout': {
     auth: true,
@@ -169,12 +169,12 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
   '/integrations': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
-    roles: ['user', 'admin']
+    roles: ['user', 'admin'],
   },
   '/integrations/:id': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
-    roles: ['user', 'admin']
+    roles: ['user', 'admin'],
   },
   '/integrations/github/callback': {
     auth: false,
@@ -190,12 +190,14 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
   '/integrations/projects/:projectId/aws/connect-role': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
-    roles: ['user', 'admin']
+    roles: ['user', 'admin'],
+    requireProjectAccess: true
   },
   '/integrations/projects/:id/scan-history': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
-    roles: ['user', 'admin']
+    roles: ['user', 'admin'],
+    requireProjectAccess: true
   },
   '/integrations/projects/:projectId/aws/scan': {
     auth: true,

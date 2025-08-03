@@ -120,12 +120,7 @@ export function validate(config: Record<string, unknown>) {
       S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
       CLOUDTRAIL_BUCKET_NAME: process.env.CLOUDTRAIL_BUCKET_NAME,
       ENABLE_SECRETS_MANAGER: process.env.ENABLE_SECRETS_MANAGER,
-      OPENAI_API_KEY: process.env.OPENAI_API_KEY || (() => {
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error('OPENAI_API_KEY is required in production');
-        }
-        return 'sk-test-key-for-development';
-      })(),
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
       OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
       OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
       GCP_CLIENT_ID: process.env.GCP_CLIENT_ID,

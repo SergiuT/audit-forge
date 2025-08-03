@@ -79,8 +79,8 @@ export class IntegrationsService {
     }));
   }
 
-  async deleteIntegration(id: string, userId: number) {
-    const integration = await this.integrationRepository.findOne({ where: { id, userId } });
+  async deleteIntegration(id: string, user: User) {
+    const integration = await this.integrationRepository.findOne({ where: { id, userId: user.id } });
   
     if (!integration) {
       throw new NotFoundException(`Integration with ID ${id} not found`);

@@ -12,7 +12,6 @@ import { ProjectsModule } from './modules/project/project.module';
 import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthController } from './common/controllers/health.controller';
-import { RateLimiterService } from './shared/services/rate-limiter.service';
 import { APP_GUARD } from '@nestjs/core';
 import { SecurityGuard } from './common/guards/security.guard';
 

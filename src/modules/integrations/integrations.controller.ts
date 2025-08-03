@@ -285,15 +285,15 @@ export class IntegrationsController {
   }
 
   @Delete('/:id')
-  async deleteIntegration(@Param('id') id: string, @User('id') userId: string) {
-    this.logger.log(`Starting integration deletion for ID ${id} by user ${userId}`);
+  async deleteIntegration(@Param('id') id: string, @User() user) {
+    this.logger.log(`Starting integration deletion for ID ${id} by user ${user.id}`);
 
     try {
-      await this.integrationsService.deleteIntegration(id, Number(userId));
-      this.logger.log(`Successfully deleted integration ${id} by user ${userId}`);
+      await this.integrationsService.deleteIntegration(id, user);
+      this.logger.log(`Successfully deleted integration ${id} by user ${user.id}`);
       return { message: `Integration ${id} deleted` };
     } catch (error) {
-      this.logger.error(`Failed to delete integration ${id} by user ${userId}`, error.stack);
+      this.logger.error(`Failed to delete integration ${id} by user ${user.id}`, error.stack);
       throw new InternalServerErrorException('Failed to delete integration');
     }
   }
