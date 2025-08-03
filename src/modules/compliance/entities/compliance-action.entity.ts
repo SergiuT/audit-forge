@@ -16,6 +16,15 @@ export class ComplianceAction {
   @Column()
   projectId: number;
 
+  @Column()
+  findingId: number;
+
   @ManyToOne(() => ComplianceFinding, (finding) => finding.actions, { onDelete: 'CASCADE' })
   finding: ComplianceFinding;
+
+  @Column()
+  createdAt: Date;
+  
+  @Column()
+  updatedAt: Date;
 }

@@ -31,6 +31,14 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     auth: false,
     rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 } // 15 min
   },
+  '/auth/logout': {
+    auth: false,
+    rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }
+  },
+  '/auth/logout-all': {
+    auth: false,
+    rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }
+  },
   '/auth/register': {
     auth: false,
     rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }

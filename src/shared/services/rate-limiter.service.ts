@@ -2,6 +2,7 @@ import { RateLimitOptions } from '@/common/decorators/rate-limit.decorator';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis } from 'ioredis';
+import { CacheService } from './cache.service';
 
 export interface RateLimitResult {
     limit: number;
@@ -13,15 +14,8 @@ export interface RateLimitResult {
 @Injectable()
 export class RateLimiterService {
     private readonly logger = new Logger(RateLimiterService.name);
-    private readonly redisClient: Redis;
 
-    constructor(private readonly configService: ConfigService) {
-        const redisURL = this.configService.get<string>('REDIS_URL');
-        if (!redisURL) {
-            throw new Error('REDIS_URL is not set');
-        }
-        this.redisClient = new Redis(redisURL);
-    }
+    constructor(private readonly cacheService: CacheService) {}
 
     async checkRateLimit(
         key: string,
@@ -31,11 +25,11 @@ export class RateLimiterService {
             const now = Date.now();
             const windowStart = now - config.windowMs
 
-            const requests = await this.redisClient.zrangebyscore(key, windowStart, '+inf');
+            const requests = await this.cacheService.getRedisClient().zrangebyscore(key, windowStart, '+inf');
             const currentCount = requests.length;
 
             if (currentCount >= config.maxRequests) {
-                const oldestRequest = await this.redisClient.zrange(key, 0, 0, 'WITHSCORES');
+                const oldestRequest = await this.cacheService.getRedisClient().zrange(key, 0, 0, 'WITHSCORES');
                 const resetTime = parseInt(oldestRequest[1]) + config.windowMs;
 
                 return {
@@ -46,8 +40,8 @@ export class RateLimiterService {
                 };
             }
 
-            await this.redisClient.zadd(key, now, now.toString());
-            await this.redisClient.expire(key, Math.ceil(config.windowMs / 1000));
+            await this.cacheService.getRedisClient().zadd(key, now, now.toString());
+            await this.cacheService.getRedisClient().expire(key, Math.ceil(config.windowMs / 1000));
 
             return {
                 limit: config.maxRequests,

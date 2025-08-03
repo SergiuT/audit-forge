@@ -19,8 +19,31 @@ export class CacheService implements OnModuleDestroy, OnApplicationShutdown {
                 throw new Error('REDIS_URL is not set');
             }
             this.redisClient = new Redis(redisURL);
-            this.logger.log('Redis caching is enabled');
+
+            this.setupEventHandlers();
+            this.logger.log('Redis client is initialized');
         }
+    }
+
+    private setupEventHandlers(): void {
+        this.redisClient.on('connect', () => {
+            this.logger.log('Redis connected');
+        });
+
+        this.redisClient.on('ready', () => {
+            this.logger.log('Redis ready');
+        });
+
+        this.redisClient.on('error', (error) => {
+            this.logger.error('Redis error:', error);
+        });
+    }
+
+    getRedisClient(): Redis {
+        if (!this.isEnabled) {
+            throw new Error('Redis is not enabled');
+        }
+        return this.redisClient;
     }
 
     async get<T>(key: string): Promise<T | null> {

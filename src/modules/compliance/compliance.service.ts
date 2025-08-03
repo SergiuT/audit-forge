@@ -127,7 +127,7 @@ export class ComplianceService {
           recommendation:
             FINDING_RECOMMENDATIONS[finding.rule] ||
             'Review this finding and take appropriate action.',
-          finding,
+          findingId: finding.id,
           projectId: createReportDto.projectId,
         }),
       );
