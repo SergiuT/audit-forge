@@ -28,7 +28,7 @@ const pipeline = promisify(stream.pipeline);
 export class GithubScanService {
   private readonly logger = new Logger(IntegrationsService.name);
   private encryptionKey: string;
-  
+
   constructor(
     @InjectRepository(IntegrationProject)
     private integrationProjectRepository: Repository<IntegrationProject>,
@@ -172,57 +172,55 @@ export class GithubScanService {
       const [owner, repo] = project.externalId.split('/');
 
       const workflowRuns = await this.githubService.getWorkflowRuns(token, owner, repo);
-      const sortedRuns = workflowRuns.sort((a, b) => b.id - a.id); // newest first
+      const trivyRuns = workflowRuns.filter(run =>
+        run.name?.toLowerCase().includes('trivy') ||
+        run.path?.toLowerCase().includes('trivy') ||
+        run.head_branch === 'trivy'
+      );
 
-      const runsToScan = sortedRuns.filter((run) => {
-        if (project.lastRunId && run.id <= project.lastRunId) return false;
-        return true;
-      });
+      const lastRun = trivyRuns.sort((a, b) => b.id - a.id)[0];
 
-      if (!runsToScan.length) {
+      if (!trivyRuns.length) {
         this.logger.log(`[SCAN] No new runs to scan for ${project.externalId}`);
         continue;
       }
 
-      for (const run of workflowRuns) {
-        const existingReport = await this.complianceService.findOneByRunId(run.id);
+      const existingReport = await this.complianceService.findOneByRunId(lastRun.id);
 
-        if (existingReport) {
-          this.logger.warn(`🟡 Skipping run ${run.id} for ${owner}/${repo} — report already exists (ID: ${existingReport.id})`);
-          return null;
-        }
-        try {
-          await this.processGitHubLogs({
-            token,
-            owner,
-            repo,
-            runId: run.id,
-            projectId: +projectId,
-            useManager: integration?.useManager,
-            integrationId: integration?.id,
-            user,
-          });
-
-          await this.auditTrailService.logEvent({
-            userId: Number(integration.userId),
-            projectId: +projectId,
-            action: AuditAction.SCAN_COMPLETED,
-            resourceType: 'IntegrationProject',
-            resourceId: integration.id,
-            metadata: {
-              type: IntegrationType.GITHUB,
-              githubProjectId: project.externalId,
-            },
-          });
-        } catch (err) {
-          this.logger.warn(`Failed to process run ${run.id} for ${project.externalId}`, err);
-          continue;
-        }
+      if (existingReport) {
+        this.logger.warn(`🟡 Skipping run ${lastRun.id} for ${owner}/${repo} — report already exists (ID: ${existingReport.id})`);
+        return null;
       }
 
-      const newestRun = runsToScan[0]; // already sorted by id desc
+      try {
+        await this.processGitHubLogs({
+          token,
+          owner,
+          repo,
+          runId: lastRun.id,
+          projectId: +projectId,
+          useManager: integration?.useManager,
+          integrationId: integration?.id,
+          user,
+        });
 
-      project.lastRunId = newestRun.id;
+        await this.auditTrailService.logEvent({
+          userId: Number(integration.userId),
+          projectId: +projectId,
+          action: AuditAction.SCAN_COMPLETED,
+          resourceType: 'IntegrationProject',
+          resourceId: integration.id,
+          metadata: {
+            type: IntegrationType.GITHUB,
+            githubProjectId: project.externalId,
+          },
+        });
+      } catch (err) {
+        this.logger.warn(`Failed to process run ${lastRun.id} for ${project.externalId}`, err);
+        continue;
+      }
+
+      project.lastRunId = lastRun.id;
       project.lastScannedAt = new Date();
 
       await this.integrationProjectRepository.save(project);
@@ -319,7 +317,7 @@ export class GithubScanService {
         userId: 1,
       };
 
-      return await this.complianceService.create(dto, fakeFile, user, 'github-logs');
+      return await this.complianceService.create(dto, fakeFile, user, 'github');
     } catch (err) {
       console.error('GitHub log ingestion error:', err);
       throw new BadRequestException('Failed to ingest logs from GitHub');

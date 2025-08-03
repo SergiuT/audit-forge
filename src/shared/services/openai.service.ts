@@ -21,10 +21,10 @@ export class OpenAIService {
 
   async onModuleInit(): Promise<void> {
     const apiKey = await this.awsSecretManagerService.getSecretWithFallback(
-      'openai-api-key', 
+      'openai-api-key',
       'OPENAI_API_KEY'
     );
-    
+
     this.openai = new OpenAI({
       apiKey,
     });

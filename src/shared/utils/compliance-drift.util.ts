@@ -55,3 +55,21 @@ export function generateDriftComparison(
     categoryScoreDelta,
   };
 }
+
+export function truncateFileContent(content: string, maxTokens: number = 8000): string {
+  // Rough estimation: 1 token ≈ 4 characters
+  const maxChars = maxTokens * 4;
+
+  if (content.length <= maxChars) {
+    return content;
+  }
+
+  // Truncate and add indicator
+  const truncated = content.substring(0, maxChars);
+  const lines = truncated.split('\n');
+
+  // Keep the last few lines to preserve context
+  const lastLines = lines.slice(-50).join('\n');
+
+  return `[TRUNCATED - Original content was ${content.length} characters]\n\n${lastLines}`;
+}

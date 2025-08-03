@@ -5,13 +5,14 @@ import { Injectable } from "@nestjs/common";
 import { ComplianceFinding } from "../entities/compliance-finding.entity";
 import { ComplianceReport } from "../entities/compliance-report.entity";
 import { User } from "@/modules/auth/entities/user.entity";
+import { truncateFileContent } from "@/shared/utils/compliance-drift.util";
 
 @Injectable()
 export class ComplianceAIService {
   constructor(
     private readonly openaiService: OpenAIService,
     private readonly checklistService: ChecklistService,
-  ) {}
+  ) { }
 
   async generateSummary(
     report: ComplianceReport,
@@ -55,17 +56,20 @@ export class ComplianceAIService {
       educational: 'Explain security gaps and best practices in simple terms.',
     };
 
+    // Truncate file content to prevent token limit issues
+    const truncatedContent = truncateFileContent(fileContent);
+
     return `
       You are a professional SOC2/ISO27001 compliance assistant for ${logSource} logs. A system scan was performed, and the following data was collected:
 
       ## File content
-      ${fileContent}
+      ${truncatedContent}
 
       ### 📝 Findings (${findings.length})
       ${findings.map((f) => {
-        const controls = f.mappedControls?.length ? ` ↪️ Controls: ${f.mappedControls.join(', ')}` : '';
-        return `- [${f.severity.toUpperCase()}] ${f.description}${controls}`;
-      }).join('\n')}
+      const controls = f.mappedControls?.length ? ` ↪️ Controls: ${f.mappedControls.join(', ')}` : '';
+      return `- [${f.severity.toUpperCase()}] ${f.description}${controls}`;
+    }).join('\n')}
 
       ## 📊 Insights
       - Compliance Score: ${complianceScore}%
