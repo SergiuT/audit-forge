@@ -20,13 +20,13 @@ export class RegisterDto {
   username: string;
 
   @IsEmail()
-  // @SanitizeEmail()
+  @SanitizeEmail()
   email: string;
 
   @IsString()
   @MinLength(6)
   @MaxLength(48)
-  // @SanitizeString()
+  @SanitizeString()
   password: string;
 }
 

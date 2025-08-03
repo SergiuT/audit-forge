@@ -1,7 +1,4 @@
-import { RateLimitOptions } from '@/common/decorators/rate-limit.decorator';
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Redis } from 'ioredis';
 import { CacheService } from './cache.service';
 
 export interface RateLimitResult {
@@ -9,6 +6,14 @@ export interface RateLimitResult {
     remaining: number;
     reset: number;
     retryAfter?: number;
+}
+
+export interface RateLimitOptions {
+    windowMs: number;
+    maxRequests: number;
+    type: 'user' | 'ip' | 'global';
+    skipSuccessfulRequests?: boolean;
+    skipFailedRequests?: boolean;
 }
 
 @Injectable()

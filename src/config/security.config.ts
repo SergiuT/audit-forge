@@ -32,12 +32,12 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 } // 15 min
   },
   '/auth/logout': {
-    auth: false,
+    auth: true,
     rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }
   },
   '/auth/logout-all': {
-    auth: false,
-    rateLimit: { type: 'ip', maxRequests: 10, windowMs: 900000 }
+    auth: true,
+    rateLimit: { type: 'user', maxRequests: 10, windowMs: 900000 }
   },
   '/auth/register': {
     auth: false,
@@ -46,6 +46,11 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
   '/auth/refresh': {
     auth: false, // No auth needed for refresh
     rateLimit: { type: 'ip', maxRequests: 10, windowMs: 60000 }
+  },
+  '/auth/sessions': {
+    auth: true,
+    rateLimit: { type: 'user', maxRequests: 10, windowMs: 60000 },
+    roles: ['user', 'admin']
   },
 
   // COMPLIANCE ROUTES

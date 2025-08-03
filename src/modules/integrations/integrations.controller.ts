@@ -1,5 +1,5 @@
 // modules/integrations/integrations.controller.ts
-import { Controller, Post, Body, BadRequestException, UseGuards, Get, Param, NotFoundException, Query, Delete, Res, UseInterceptors, Req, UploadedFile, Logger, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, Get, Param, NotFoundException, Query, Delete, UseInterceptors, Logger, InternalServerErrorException } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 import { CreateIntegrationDto } from './dto/create-integration.dto';
 import { GitHubAuthService } from '@/shared/services/github-auth.service';
@@ -9,7 +9,9 @@ import { AWSScanService } from './services/aws-scan.service';
 import { User } from '@/common/decorators/user.decorator';
 import { ConfigService } from '@nestjs/config';
 import { validateOAuthState } from '@/shared/utils/oauth-state.util';
+import { IdempotencyInterceptor } from '@/common/interceptors/idempotency.interceptor';
 
+@UseInterceptors(IdempotencyInterceptor)
 @Controller('integrations')
 export class IntegrationsController {
   private readonly logger = new Logger(IntegrationsController.name);

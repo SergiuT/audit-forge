@@ -98,13 +98,27 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         }
 
         // AWS errors
-        if (exception instanceof Error && exception.message.includes('AWS')) {
+        if (exception instanceof Error && 
+            (exception.message.includes('AWS') 
+            || exception.message.includes('Google') 
+            || exception.message.includes('Github')
+        )) {
             return {
                 status: HttpStatus.BAD_GATEWAY,
                 message: 'Cloud service integration error',
                 error: 'CloudServiceError',
             };
         }
+
+        // Rate limit errors
+        if (exception instanceof Error && exception.message.includes('Rate limit')) {
+            return {
+                status: HttpStatus.TOO_MANY_REQUESTS,
+                message: 'Too many requests',
+                error: 'RateLimitExceeded',
+            };
+        }
+
 
         // Default error
         return {

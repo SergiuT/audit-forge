@@ -1,8 +1,10 @@
 // src/modules/projects/projects.controller.ts
-import { Controller, Post, Body, Get, Param, Logger, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Logger, BadRequestException, NotFoundException, InternalServerErrorException, UseInterceptors } from '@nestjs/common';
 import { ProjectsService } from './project.service';
 import { User } from '@/common/decorators/user.decorator';
+import { IdempotencyInterceptor } from '@/common/interceptors/idempotency.interceptor';
 
+@UseInterceptors(IdempotencyInterceptor)
 @Controller('projects')
 export class ProjectsController {
   private readonly logger = new Logger(ProjectsController.name);

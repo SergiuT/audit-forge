@@ -10,6 +10,7 @@ import {
   Logger,
   NotFoundException,
   InternalServerErrorException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ComplianceService } from './compliance.service';
 import { Response } from 'express';
@@ -18,7 +19,9 @@ import { User } from '@/common/decorators/user.decorator';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
 import { SeverityOptions } from '@/shared/types/types';
 import { ComplianceReportService } from './services/compliance-report.service';
+import { IdempotencyInterceptor } from '@/common/interceptors/idempotency.interceptor';
 
+@UseInterceptors(IdempotencyInterceptor)
 @Controller('compliance')
 export class ComplianceController {
   private readonly logger = new Logger(ComplianceController.name);

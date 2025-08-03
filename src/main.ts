@@ -6,6 +6,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { SanitizePipe } from './common/pipes/sanitize.pipe';
+import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { CacheService } from './shared/services/cache.service';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -17,6 +19,8 @@ async function bootstrap() {
         : ['log', 'error', 'warn', 'debug', 'verbose'],
     });
 
+    // Idempotency interceptor
+    app.useGlobalInterceptors(new IdempotencyInterceptor(app.get(CacheService)));
     // Global error handling
     app.useGlobalFilters(new GlobalExceptionFilter());
 

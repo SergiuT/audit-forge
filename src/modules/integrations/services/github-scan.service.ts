@@ -48,34 +48,25 @@ export class GithubScanService {
   }
 
   async generateAuthUrl(projectId: string, userId: string): Promise<{ authUrl: string }> {
-    return this.retryService.withRetry({
-      execute: () => this.circuitBreakerService.execute(
-        'github-generate-auth-url',
-        async () => {
-          const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
-          const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
+    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+    const redirectUri = this.configService.get<string>('GITHUB_REDIRECT_URI');
 
-          if (!clientId || !redirectUri) {
-            throw new BadRequestException('GitHub OAuth credentials not configured');
-          }
+    if (!clientId || !redirectUri) {
+      throw new BadRequestException('GitHub OAuth credentials not configured');
+    }
 
-          const state = createOAuthState(userId, projectId, true);
+    const state = createOAuthState(userId, projectId, true);
 
-          // Manual URL construction with proper encoding
-          const params = new URLSearchParams({
-            client_id: clientId,
-            redirect_uri: redirectUri,
-            state: state,
-            scope: 'repo,workflow'
-          });
-
-          const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
-          return { authUrl };
-        }
-      ),
-      maxRetries: 3,
-      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
+    // Manual URL construction with proper encoding
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state: state,
+      scope: 'repo,workflow'
     });
+
+    const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
+    return { authUrl };
   }
 
   async createOrUpdateGitHubIntegration(token: string, userId: number, projectId: string): Promise<Integration> {
@@ -299,18 +290,31 @@ export class GithubScanService {
     user: User;
   }) {
     try {
-      const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/logs`;
+      let response;
 
-      const response = await axios({
-        url,
-        method: 'GET',
-        responseType: 'stream',
-        headers: {
-          Authorization: `token ${token}`,
-          'User-Agent': 'AuditForge',
-          Accept: 'application/vnd.github.v3+json',
-        },
-      });
+      try {
+        response = await this.retryService.withRetry({
+          execute: () =>
+            this.circuitBreakerService.execute('github-get-run-logs', async () => {
+              const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/logs`;
+              return axios({
+                url,
+                method: 'GET',
+                responseType: 'stream',
+                headers: {
+                  Authorization: `token ${token}`,
+                  'User-Agent': 'AuditForge',
+                  Accept: 'application/vnd.github.v3+json',
+                },
+              });
+            }),
+          maxRetries: 3,
+          retryDelay: (retry) => Math.min(1000 * 2 ** retry, 5000),
+        });
+      } catch (err) {
+        this.logger.error(`[GitHub] Failed to fetch logs for ${owner}/${repo} runId ${runId}`, err);
+        throw new BadRequestException('GitHub Actions logs could not be retrieved');
+      }
 
       const buffers: string[] = [];
 

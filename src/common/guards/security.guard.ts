@@ -20,13 +20,12 @@ export class SecurityGuard implements CanActivate {
     const route = this.getRoutePath(request);
 
     this.logger.log(`🔍 SecurityGuard checking route: ${route}`);
-    // Get security policy for this route
     const policy = this.getSecurityPolicy(route);
 
     if (!policy) {
       // Default to secure if no policy found
       this.logger.warn(`No security policy found for route: ${route}, defaulting to secure`);
-      return this.requireAuth(context);
+      return this.requireAuth();
     }
 
     // Step 1: Handle Authentication
@@ -116,7 +115,7 @@ export class SecurityGuard implements CanActivate {
 
     if (config.type === 'user') {
       if (!request.user) {
-        // Fall back to IP-based rate limiting (same as your current fix)
+        // Fall back to IP-based rate limiting
         this.logger.log('No authenticated user found, falling back to IP-based rate limiting');
         key = await this.rateLimiterService.getIPKey(request.ip, request.route.path);
       } else {
@@ -227,7 +226,7 @@ export class SecurityGuard implements CanActivate {
     return request.route?.path || request.path || request.url;
   }
 
-  private requireAuth(context: ExecutionContext): boolean {
+  private requireAuth(): boolean {
     throw new UnauthorizedException('Authentication required');
   }
 }
