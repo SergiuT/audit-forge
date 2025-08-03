@@ -14,6 +14,7 @@ import { GitHubService } from './services/github.service';
 import { GCPService } from './services/gcp.service';
 import { RateLimiterService } from './services/rate-limiter.service';
 import { PineconeService } from './services/pinecone.service';
+import { BatchProcessorService } from './services/batch-processor.service';
 
 @Global()
 @Module({
@@ -27,6 +28,7 @@ import { PineconeService } from './services/pinecone.service';
         RetryService,
         CircuitBreakerService,
         HealthService,
+        BatchProcessorService,
 
         // AI and external services
         OpenAIService,
@@ -49,6 +51,7 @@ import { PineconeService } from './services/pinecone.service';
         CacheService,
         RetryService,
         CircuitBreakerService,
+        BatchProcessorService,
         HealthService,
         OpenAIService,
         S3Service,

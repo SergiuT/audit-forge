@@ -1,4 +1,50 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsNumber, IsDate } from 'class-validator';
+
+export class ReportDetailsDto {
+  @IsString()
+  @IsOptional()
+  repo?: string;
+
+  @IsString()
+  @IsOptional()
+  integrationId?: string;
+
+  @IsString()
+  @IsOptional()
+  runId?: number;
+
+  @IsString()
+  @IsOptional()
+  source?: string;
+
+  @IsDate()
+  @IsOptional()
+  scannedAt?: Date;
+
+  @IsDate()
+  @IsOptional()
+  ingestedAt?: Date;
+
+  @IsString()
+  @IsOptional()
+  tokenType?: string;
+
+  @IsNumber()
+  @IsOptional()
+  scannedBy?: number;
+
+  @IsString()
+  @IsOptional()
+  prefix?: string;
+
+  @IsNumber()
+  @IsOptional()
+  logFilesProcessed?: number;
+
+  @IsString()
+  @IsOptional()
+  bucket?: string;
+}
 
 export class ReportDataDto {
   @IsString()
@@ -7,7 +53,7 @@ export class ReportDataDto {
 
   @IsObject()
   @IsOptional()
-  details: object;
+  details: ReportDetailsDto;
 
   @IsOptional()
   @IsString()

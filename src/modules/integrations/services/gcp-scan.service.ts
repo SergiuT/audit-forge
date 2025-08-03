@@ -367,7 +367,7 @@ export class GCPScanService {
           description: 'Logs from GCP',
           details: {
             source: 'GCP Logs',
-            ingestedAt: new Date().toISOString(),
+            ingestedAt: new Date(),
             scannedAt,
             tokenType,
             integrationId

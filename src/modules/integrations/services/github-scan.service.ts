@@ -19,6 +19,7 @@ import { RetryService } from "@/shared/services/retry.service";
 import { CircuitBreakerService } from "@/shared/services/circuit-breaker.service";
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
 import { User } from "@/modules/auth/entities/user.entity";
+import { BatchProcessorService } from "@/shared/services/batch-processor.service";
 
 const pipeline = promisify(stream.pipeline);
 
@@ -34,9 +35,10 @@ export class GithubScanService {
     private integrationRepository: Repository<Integration>,
 
     private githubService: GitHubService,
+    private configService: ConfigService,
+    private readonly batchProcessorService: BatchProcessorService,
     private readonly complianceService: ComplianceService,
     private readonly awsSecretManagerService: AWSSecretManagerService,
-    private configService: ConfigService,
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
   ) { }
@@ -148,68 +150,134 @@ export class GithubScanService {
       this.logger.log('No specific repos provided - this will scan ALL GitHub repos');
     }
 
-    this.logger.log(`Where condition: ${JSON.stringify(whereCondition)}`);
-
     const integrationProjects = await this.integrationProjectRepository.find({
       where: whereCondition,
       relations: ['integration'],
     });
 
+    if (!integrationProjects.length) {
+      this.logger.warn('No integration projects found');
+      return;
+    }
     this.logger.log(`Found ${integrationProjects.length} integration projects`);
-    integrationProjects.forEach(p => this.logger.log(`- ${p.externalId}`));
 
-    for (const project of integrationProjects) {
-      const { integration } = project;
-      if (!integration || integration.projectId != projectId) continue;
+    const projectsByIntegration = this.batchProcessorService.groupBy(
+      integrationProjects, 
+      project => project.integration.id
+    );
 
-      const token = integration.useManager
-        ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-        : decrypt(integration.credentials, this.encryptionKey);
+    const integrationResults = await this.batchProcessorService.processBatch({
+      items: Array.from(projectsByIntegration.entries()),
+      processor: async ([integrationId, projects]) => {
+        return this.processIntegrationBatch(integrationId, projects, user);
+      },
+      config: {
+        maxConcurrency: 3,
+        batchSize: 1,
+        rateLimitDelay: 2000,
+      },
+      onProgress: (processed, total) => {
+        this.logger.log(`Processed ${processed}/${total} integrations`);
+      }
+    });
 
-      const [owner, repo] = project.externalId.split('/');
+    const scanResults = {
+      processed: integrationResults.success.reduce((sum, result) => sum + result.processed, 0),
+      skipped: integrationResults.success.reduce((sum, result) => sum + result.skipped, 0),
+      failed: integrationResults.success.reduce((sum, result) => sum + result.failed, 0),
+    }
 
+    this.logger.log(
+      `Batch scan completed. Processed: ${scanResults.processed}, ` +
+      `Skipped: ${scanResults.skipped}, Failed: ${scanResults.failed}`
+    );
+
+    return scanResults;
+  }
+
+  private async processIntegrationBatch(
+    integrationId: string, 
+    projects: IntegrationProject[], 
+    user: User,
+  ) {
+    const integration = projects[0].integration;
+    const token = integration.useManager
+      ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
+      : decrypt(integration.credentials, this.encryptionKey);
+  
+    const result = await this.batchProcessorService.processBatch({
+      items: projects,
+      processor: async (project) => this.processSingleRepo(project, token, user),
+      config: {
+        maxConcurrency: 10, // Limit concurrent repo processing
+        batchSize: 20,
+        rateLimitDelay: 1000, // GitHub rate limiting
+      },
+      onProgress: (processed, total) => {
+        this.logger.log(`Processed ${processed}/${total} repos for integration ${integrationId}`);
+      }
+    });
+  
+    return {
+      processed: result.success.length,
+      skipped: result.skipped.length,
+      failed: result.failed.length,
+    };
+  }
+  
+  private async processSingleRepo(
+    project: IntegrationProject, 
+    token: string, 
+    user: User
+  ): Promise<'processed' | 'skipped'> {
+    const [owner, repo] = project.externalId.split('/');
+    
+    try {
       const workflowRuns = await this.githubService.getWorkflowRuns(token, owner, repo);
-      const trivyRuns = workflowRuns.filter(run =>
-        run.name?.toLowerCase().includes('trivy') ||
-        run.path?.toLowerCase().includes('trivy') ||
-        run.head_branch === 'trivy'
-      );
-
-      const lastRun = trivyRuns.sort((a, b) => b.id - a.id)[0];
-
+      const trivyRuns = this.filterTrivyRuns(workflowRuns);
+      
       if (!trivyRuns.length) {
-        this.logger.log(`[SCAN] No new runs to scan for ${project.externalId}`);
-        continue;
+        this.logger.log(`[BATCH] No trivy runs for ${project.externalId}`);
+        return 'skipped';
       }
-
+  
+      const lastRun = trivyRuns.sort((a, b) => b.id - a.id)[0];
       const existingReport = await this.complianceService.findOneByRunId(lastRun.id);
-
+  
       if (existingReport) {
-        this.logger.warn(`🟡 Skipping run ${lastRun.id} for ${owner}/${repo} — report already exists (ID: ${existingReport.id})`);
-        return null;
+        this.logger.warn(`[BATCH] Skipping existing run ${lastRun.id} for ${project.externalId}`);
+        return 'skipped';
       }
-
-      try {
-        await this.processGitHubLogs({
-          token,
-          owner,
-          repo,
-          runId: lastRun.id,
-          projectId: +projectId,
-          useManager: integration?.useManager,
-          integrationId: integration?.id,
-          user,
-        });
-      } catch (err) {
-        this.logger.warn(`Failed to process run ${lastRun.id} for ${project.externalId}`, err);
-        continue;
-      }
-
+  
+      await this.processGitHubLogs({
+        token,
+        owner,
+        repo,
+        runId: lastRun.id,
+        projectId: +project.integration.projectId,
+        useManager: project.integration?.useManager,
+        integrationId: project.integration?.id,
+        user,
+      });
+  
+      // Update project metadata
       project.lastRunId = lastRun.id;
       project.lastScannedAt = new Date();
-
       await this.integrationProjectRepository.save(project);
+  
+      return 'processed';
+    } catch (error) {
+      this.logger.error(`[BATCH] Failed to process ${project.externalId}:`, error);
+      throw error;
     }
+  }
+  
+  private filterTrivyRuns(workflowRuns: any[]) {
+    return workflowRuns.filter(run =>
+      run.name?.toLowerCase().includes('trivy') ||
+      run.path?.toLowerCase().includes('trivy') ||
+      run.head_branch === 'trivy'
+    );
   }
 
   async processGitHubLogs({
@@ -293,13 +361,13 @@ export class GithubScanService {
             repo: `${owner}/${repo}`,
             runId,
             integrationId,
-            scannedAt: new Date().toISOString(),
+            scannedAt: new Date(),
             tokenType: useManager ? 'secretsManager' : 'aes',
-            scannedBy: 1, // optional
+            scannedBy: user.id,
           },
         },
         projectId,
-        userId: 1,
+        userId: user.id,
       };
 
       return await this.complianceService.create(dto, fakeFile, user, 'github');
@@ -328,39 +396,50 @@ export class GithubScanService {
       allRepos = allRepos.concat(orgRepos);
     }
 
-    const saved = await Promise.all(
-      allRepos.map(async (repo) => {
-        const existing = await this.integrationProjectRepository.findOne({
-          where: {
-            integrationId: integration.id,
-            externalId: repo.full_name,
-          },
-        });
-
-        if (existing) {
-          existing.name = repo.name;
-          existing.metadata = {
-            private: repo.private,
-            pushedAt: repo.pushed_at,
-            url: repo.html_url,
-          };
-          return this.integrationProjectRepository.save(existing);
-        }
-
-        return this.integrationProjectRepository.save({
-          type: IntegrationType.GITHUB,
-          name: repo.name,
-          externalId: repo.full_name,
-          metadata: {
-            private: repo.private,
-            pushedAt: repo.pushed_at,
-            url: repo.html_url,
-          },
-          integrationId: integration.id,
-        });
-      })
-    );
+    const saved = await this.batchProcessorService.processBatch({
+      items: allRepos,
+      processor: async (repo) => this.processReposBatch(repo, integrationId),
+      config: {
+        maxConcurrency: 10,
+        batchSize: 50,
+        rateLimitDelay: 1000,
+      },
+      onProgress: (processed, total) => {
+        this.logger.log(`Saved ${processed}/${total} repositories`);
+      }
+    })
 
     return saved;
+  }
+
+  private async processReposBatch(repo: any, integrationId: string) {
+    const existing = await this.integrationProjectRepository.findOne({
+      where: {
+        integrationId,
+        externalId: repo.full_name,
+      },
+    });
+
+    if (existing) {
+      existing.name = repo.name;
+      existing.metadata = {
+        private: repo.private,
+        pushedAt: repo.pushed_at,
+        url: repo.html_url,
+      };
+      return this.integrationProjectRepository.save(existing);
+    }
+
+    return this.integrationProjectRepository.save({
+      type: IntegrationType.GITHUB,
+      name: repo.name,
+      externalId: repo.full_name,
+      metadata: {
+        private: repo.private,
+        pushedAt: repo.pushed_at,
+        url: repo.html_url,
+      },
+      integrationId,
+    });
   }
 }

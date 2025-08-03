@@ -108,7 +108,6 @@ export class AIAgentService {
                 return [];
             }
 
-            this.logger.log(`Normalized logs: ${JSON.stringify(normalizedLogs.normalizedEvents, null, 2)}`);
             const uniqueQueries = new Set<string>();
         
             for (const event of normalizedLogs.normalizedEvents) {
@@ -121,7 +120,6 @@ export class AIAgentService {
             const findings: ComplianceFindingResult[] = [];
             const seenRules = new Set<string>();
             
-            this.logger.log(`Control results: ${JSON.stringify(normalizedLogs.normalizedEvents, null, 2)}`);
             for (const event of normalizedLogs.normalizedEvents) {
                 const query = this.buildVulnerabilitySearchQuery(event, logSource);
                 const controls = controlResults.get(query) || [];

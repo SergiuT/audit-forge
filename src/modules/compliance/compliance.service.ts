@@ -85,13 +85,15 @@ export class ComplianceService {
         categoryScores: getCategoryScores(analysisFindings),
         controlScores: getControlScores(analysisFindings),
       };
+
       // 3. Compare with previous report (if exists)
       const source = determineReportSourceFromPrefix(prefix || 'other');
       const drift = await this.driftService.compareWithPrevious(
         createReportDto.projectId,
         analysis,
         createReportDto.reportData?.integrationId,
-        source
+        source,
+        createReportDto.reportData?.details?.repo
       );
 
       // 4. Create report
@@ -107,7 +109,6 @@ export class ComplianceService {
 
       const report = await this.reportService.create(reportData, user.id, source);
 
-      // this.logger.log(`Report: ${JSON.stringify(report, null, 2)}`);
       // 5. Save findings and actions
       const findingEntities = analysis.findings.map((findingResult) =>
         this.findingRepository.create({

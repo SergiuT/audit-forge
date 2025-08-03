@@ -205,7 +205,7 @@ export class AWSScanService {
             source: 'AWS CloudTrail',
             prefix,
             logFilesProcessed: rawLogs.length,
-            ingestedAt: new Date().toISOString(),
+            ingestedAt: new Date(),
             bucket: bucket || 'unknown',
           },
         },

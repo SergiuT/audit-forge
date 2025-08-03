@@ -24,9 +24,10 @@ export class ComplianceDriftService {
       controlScores: Record<string, number>;
     },
     integrationId?: string,
-    source?: ReportSource
+    source?: ReportSource,
+    repo?: string
   ): Promise<DriftAnalysis | null> {
-    const previousReport = await this.findPreviousReport(projectId, integrationId, source);
+    const previousReport = await this.findPreviousReport(projectId, integrationId, source, repo);
 
     if (!previousReport) {
       return null;
@@ -42,27 +43,39 @@ export class ComplianceDriftService {
     return this.calculateDrift(currentAnalysis, previousAnalysis);
   }
 
-  private async findPreviousReport(projectId: number, integrationId?: string, source?: ReportSource): Promise<ComplianceReport | null> {
+  private async findPreviousReport(projectId: number, integrationId?: string, source?: ReportSource, repo?: string): Promise<ComplianceReport | null> {
     if (integrationId) {
-      return this.complianceReportRepository
+      const query = this.complianceReportRepository
         .createQueryBuilder('report')
         .leftJoinAndSelect('report.findings', 'finding')
         .where(`report.projectId = :projectId`, { projectId })
-        .andWhere(`report.reportData->'details'->>'integrationId' = :integrationId`, { integrationId })
+        .andWhere(`report.reportData->'details'->>'integrationId' = :integrationId`, { integrationId });
+
+      if (repo) {
+        query.andWhere(`report.reportData->'details'->>'repo' = :repo`, { repo });
+      }
+
+      return query
         .orderBy('report.createdAt', 'DESC')
         .getOne();
     }
 
     // If source is provided, filter by source to only compare reports from the same source
     if (source) {
-      return this.complianceReportRepository.findOne({
-        where: {
-          project: { id: projectId },
-          source: source
-        },
-        order: { createdAt: 'DESC' },
-        relations: ['findings', 'findings.actions'],
-      });
+      const query = this.complianceReportRepository
+        .createQueryBuilder('report')
+        .leftJoinAndSelect('report.findings', 'finding')
+        .leftJoinAndSelect('finding.actions', 'action')
+        .where('report.projectId = :projectId', { projectId })
+        .andWhere('report.source = :source', { source });
+    
+      if (repo) {
+        query.andWhere(`report."reportData"->'details'->>'repo' = :repo`, { repo });
+      }
+    
+      return query
+        .orderBy('report.createdAt', 'DESC')
+        .getOne();
     }
 
     return this.complianceReportRepository.findOne({
