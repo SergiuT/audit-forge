@@ -274,18 +274,7 @@ describe('ComplianceService', () => {
         it.skip('should create a new compliance report with file upload', async () => {
             const userId = 1;
             const projectId = 1;
-            const mockFile: Express.Multer.File = {
-                fieldname: 'file',
-                originalname: 'test.txt',
-                encoding: '7bit',
-                mimetype: 'text/plain',
-                size: 1024,
-                buffer: Buffer.from('test content'),
-                stream: null as any,
-                destination: '',
-                filename: '',
-                path: '',
-            };
+            const mockFile = 'test content';
 
             const createReportDto = {
                 reportData: {
@@ -328,18 +317,7 @@ describe('ComplianceService', () => {
         it('should handle file upload errors', async () => {
             const userId = 1;
             const user = createTestUser();
-            const mockFile: Express.Multer.File = {
-                fieldname: 'file',
-                originalname: 'test.txt',
-                encoding: '7bit',
-                mimetype: 'text/plain',
-                size: 1024,
-                buffer: Buffer.from('test content'),
-                stream: null as any,
-                destination: '',
-                filename: '',
-                path: '',
-            };
+            const mockFile = 'test content';
 
             const createReportDto = {
                 reportData: {

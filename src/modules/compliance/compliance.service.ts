@@ -23,7 +23,6 @@ import { ChecklistService } from '../checklist/checklist.service';
 import { DriftAnalysis } from '@/shared/types/types';
 import { Project } from '../project/entities/project.entity';
 import { FilterFindingsDto } from './dto/filter-findings.dto';
-import { CacheService } from '@/shared/services/cache.service';
 import { ComplianceAIService } from './services/compliance-ai.service';
 import { ComplianceDriftService } from './services/compliance-drift.service';
 import { ComplianceFileService } from './services/compliance-file.service';
@@ -53,31 +52,19 @@ export class ComplianceService {
     private readonly driftService: ComplianceDriftService,
     private readonly aiService: ComplianceAIService,
     private readonly pdfService: PdfService,
-    private readonly cacheService: CacheService,
     private readonly aiAgentService: AIAgentService,
   ) { }
 
   // Create a new report
   async create(
     createReportDto: CreateComplianceReportDto,
-    file: Express.Multer.File,
+    logContent: string,
     user: User,
     prefix?: string,
   ): Promise<ComplianceReport> {
     try {
-      if (!file) {
-        throw new BadRequestException('File is required');
-      }
-
-      // Upload file to S3
-      const fileData = await this.fileService.uploadComplianceFile(
-        file,
-        prefix
-      );
-
-      this.logger.log(`File content: ${fileData.content}`);
-      // Analyze file content
-      const analysisFindings = await this.aiAgentService.analyzeLogsForCompliance(fileData.content, prefix || 'other') as ComplianceFinding[];
+      // 1. Analyze file content
+      const analysisFindings = await this.aiAgentService.analyzeLogsForCompliance(logContent, prefix || 'other') as ComplianceFinding[];
 
       const analysis = {
         findings: analysisFindings,
@@ -86,7 +73,7 @@ export class ComplianceService {
         controlScores: getControlScores(analysisFindings),
       };
 
-      // 3. Compare with previous report (if exists)
+      // 2. Compare with previous report (if exists)
       const source = determineReportSourceFromPrefix(prefix || 'other');
       const drift = await this.driftService.compareWithPrevious(
         createReportDto.projectId,
@@ -94,6 +81,12 @@ export class ComplianceService {
         createReportDto.reportData?.integrationId,
         source,
         createReportDto.reportData?.details?.repo
+      );
+
+      // 3. Upload file to S3
+      const fileData = await this.fileService.uploadComplianceFile(
+        logContent,
+        prefix
       );
 
       // 4. Create report
@@ -107,7 +100,7 @@ export class ComplianceService {
         driftComparison: drift || undefined,
       };
 
-      const report = await this.reportService.create(reportData, user.id, source);
+      const report = await this.reportService.create(reportData);
 
       // 5. Save findings and actions
       const findingEntities = analysis.findings.map((findingResult) =>

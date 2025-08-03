@@ -12,7 +12,6 @@ import * as unzipper from 'unzipper';
 import * as stream from 'stream';
 import { promisify } from 'util';
 import { CreateComplianceReportDto } from '@/modules/compliance/dto/create-compliance-report.dto';
-import { Readable } from 'stream';
 import { IntegrationsService } from "../integrations.service";
 import { ComplianceService } from "@/modules/compliance/compliance.service";
 import { RetryService } from "@/shared/services/retry.service";
@@ -337,22 +336,6 @@ export class GithubScanService {
       );
 
       const mergedLogs = buffers.join('\n');
-
-      this.logger.log('Merged logs', mergedLogs, null, 4);
-      // Simulate uploaded .txt file using a Buffer
-      const fakeFile: Express.Multer.File = {
-        fieldname: 'file',
-        originalname: `github-logs-${Date.now()}.txt`,
-        encoding: '7bit',
-        mimetype: 'text/plain',
-        buffer: Buffer.from(mergedLogs),
-        size: Buffer.byteLength(mergedLogs),
-        stream: Readable.from(Buffer.from(mergedLogs)),
-        destination: '',
-        filename: '',
-        path: '',
-      };
-
       const dto: CreateComplianceReportDto = {
         reportData: {
           description: 'Logs from GitHub Actions',
@@ -370,7 +353,7 @@ export class GithubScanService {
         userId: user.id,
       };
 
-      return await this.complianceService.create(dto, fakeFile, user, 'github');
+      return await this.complianceService.create(dto, mergedLogs, user, 'github');
     } catch (err) {
       console.error('GitHub log ingestion error:', err);
       throw new BadRequestException('Failed to ingest logs from GitHub');

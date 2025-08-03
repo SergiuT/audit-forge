@@ -8,7 +8,7 @@ export class ComplianceFileService {
   ) {}
 
   async uploadComplianceFile(
-    file: Express.Multer.File, 
+    logContent: string, 
     prefix?: string
   ): Promise<{
     key: string;
@@ -16,23 +16,19 @@ export class ComplianceFileService {
     originalName: string;
     size: number;
   }> {
-    if (!file) {
-      throw new BadRequestException('File is required');
-    }
-
     const fileKey = this.s3Service.generateKey(
-      file.originalname, 
+      `${prefix}-${Date.now()}.txt`, 
       prefix || "compliance-report"
     );
 
-    const uploadedKey = await this.s3Service.uploadFile(file, fileKey);
-    const fileContent = file.buffer.toString('utf-8');
+    const uploadedKey = await this.s3Service.uploadFile(logContent, fileKey);
+    const fileContent = logContent;
 
     return {
       key: uploadedKey,
       content: fileContent,
-      originalName: file.originalname,
-      size: file.size,
+      originalName: `${prefix}-${Date.now()}.txt`,
+      size: logContent.length,
     };
   }
 

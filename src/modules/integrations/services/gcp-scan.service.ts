@@ -16,6 +16,7 @@ import { RetryService } from '@/shared/services/retry.service';
 import { CircuitBreakerService } from '@/shared/services/circuit-breaker.service';
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
 import { User } from "@/modules/auth/entities/user.entity";
+import { BatchProcessorService } from "@/shared/services/batch-processor.service";
 
 @Injectable()
 export class GCPScanService {
@@ -34,6 +35,7 @@ export class GCPScanService {
     private configService: ConfigService,
     private readonly retryService: RetryService,
     private readonly circuitBreakerService: CircuitBreakerService,
+    private readonly batchProcessorService: BatchProcessorService,
   ) { }
 
   async onModuleInit(): Promise<void> {
@@ -98,10 +100,6 @@ export class GCPScanService {
       },
     });
 
-    this.logger.log(`Starting OAuth exchange for user ${userId}, project ${projectId}`);
-    this.logger.log(`Client ID: ${clientId.substring(0, 10)}...`);
-    this.logger.log(`Redirect URI: ${redirectUri}`);
-
     const oauth2Client = new OAuth2Client(
       clientId,
       clientSecret,
@@ -109,14 +107,11 @@ export class GCPScanService {
     );
 
     try {
-      this.logger.log('Exchanging authorization code for tokens...');
       const { tokens } = await oauth2Client.getToken(authorizationCode);
 
       if (!tokens.access_token) {
         throw new BadRequestException('Failed to obtain access token');
       }
-
-      this.logger.log('Successfully obtained access token');
 
       // Create credentials object similar to service account
       const credentials = {
@@ -134,7 +129,6 @@ export class GCPScanService {
       const useAWSSecretsManager = await this.awsSecretManagerService.useAWSSecretsManager();
 
       if (existing) {
-        this.logger.log('Updating existing GCP OAuth integration...');
         if (existing.useManager) {
           await this.awsSecretManagerService.updateSecret(existing.credentials, credentialsJson);
           secretRef = existing.credentials;
@@ -164,7 +158,6 @@ export class GCPScanService {
         secretRef = encrypt(credentialsJson, this.encryptionKey);
       }
 
-      this.logger.log('Creating integration record...');
       const integration = await this.integrationRepository.save({
         type: IntegrationType.GCP,
         name: 'GCP OAuth Integration',
@@ -175,8 +168,6 @@ export class GCPScanService {
       });
 
       this.logger.log('Fetching user GCP projects...');
-
-      // Fetch user's GCP projects for selection
       try {
         const projects = await this.gcpService.getProjects(credentialsJson);
 
@@ -203,41 +194,13 @@ export class GCPScanService {
         }
       } catch (projectError) {
         this.logger.error('Failed to fetch GCP projects:', projectError);
-        this.logger.error('Project error details:', {
-          message: projectError.message,
-          stack: projectError.stack,
-          credentialsType: credentials.type,
-          hasAccessToken: !!credentials.access_token,
-          hasRefreshToken: !!credentials.refresh_token
-        });
-
-        // Don't fail the entire integration creation if project fetching fails
-        // The integration is still created and can be used later
-        this.logger.warn('Integration created successfully, but project fetching failed. User can retry later.');
       }
 
       this.logger.log('OAuth integration completed successfully');
       return integration;
     } catch (error) {
       this.logger.error('Failed to exchange authorization code for tokens', error);
-      this.logger.error('Error details:', {
-        message: error.message,
-        code: error.code,
-        status: error.status,
-        response: error.response?.data
-      });
-
-      // Provide more specific error message
-      let errorMessage = 'Failed to authenticate with GCP';
-      if (error.message.includes('headers.forEach')) {
-        errorMessage = 'Google Auth Library configuration issue. Please check your OAuth setup.';
-      } else if (error.message.includes('invalid_grant')) {
-        errorMessage = 'Authorization code expired or invalid. Please try the OAuth flow again.';
-      } else if (error.message.includes('redirect_uri_mismatch')) {
-        errorMessage = 'Redirect URI mismatch. Please check your OAuth configuration.';
-      }
-
-      throw new BadRequestException(`${errorMessage}: ${error.message}`);
+      throw new BadRequestException(`Error: ${error.message}`);
     }
   }
 
@@ -250,29 +213,90 @@ export class GCPScanService {
       relations: ['integration'],
     });
 
-    for (const project of integrationProjects) {
-      const { integration } = project;
-      if (!integration || integration.projectId != projectId) continue;
+    const projectsByIntegration = this.batchProcessorService.groupBy(
+      integrationProjects, 
+      project => project.integration.id
+    );
 
-      try {
-        const token = integration.useManager
-          ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
-          : decrypt(integration.credentials, this.encryptionKey);
-
-        await this.processGcpLogs({
-          credentialsJson: token,
-          gcpProjectId: project.externalId,
-          projectId: +projectId,
-          user,
-          tokenType: integration.useManager ? 'secretsManager' : 'aes',
-          integrationId: integration.id,
-        });
-
-        project.lastScannedAt = new Date();
-        await this.integrationProjectRepository.save(project);
-      } catch (err) {
-        this.logger.warn(`[GCP] Failed to process project ${project.externalId}`, err);
+    const integrationResults = await this.batchProcessorService.processBatch({
+      items: Array.from(projectsByIntegration.entries()),
+      processor: async ([integrationId, projects]) => {
+        return this.processGCPIntegrationBatch(integrationId, projects, user);
+      },
+      config: {
+        maxConcurrency: 3,
+        batchSize: 1,
+        rateLimitDelay: 2000,
+      },
+      onProgress: (processed, total) => {
+        this.logger.log(`Processed ${processed}/${total} GCP integrations`);
       }
+    });
+  
+    const scanResults = {
+      processed: integrationResults.success.reduce((sum, result) => sum + result.processed, 0),
+      failed: integrationResults.success.reduce((sum, result) => sum + result.failed, 0),
+    }
+
+    this.logger.log(
+      `GCP batch scan completed. Processed: ${scanResults.processed}, Failed: ${scanResults.failed}`
+    );
+
+    return scanResults;
+  }
+
+  private async processGCPIntegrationBatch(
+    integrationId: string, 
+    projects: IntegrationProject[], 
+    user: User,
+  ) {
+    const integration = projects[0].integration;
+    const token = integration.useManager
+      ? await this.awsSecretManagerService.getSecretValue(integration.credentials)
+      : decrypt(integration.credentials, this.encryptionKey);
+  
+    const result = await this.batchProcessorService.processBatch({
+      items: projects,
+      processor: async (project) => this.processSingleGCPProject(project, token, user),
+      config: {
+        maxConcurrency: 5,
+        batchSize: 10,
+        rateLimitDelay: 1000,
+      },
+      onProgress: (processed, total) => {
+        this.logger.log(`Processed ${processed}/${total} GCP projects for integration ${integrationId}`);
+      }
+    });
+  
+    return {
+      processed: result.success.length,
+      failed: result.failed.length,
+    };
+  }
+  
+  private async processSingleGCPProject(
+    project: IntegrationProject, 
+    token: string, 
+    user: User
+  ): Promise<'processed' | 'failed'> {
+    try {
+      await this.processGcpLogs({
+        credentialsJson: token,
+        gcpProjectId: project.externalId,
+        projectId: +project.integration.projectId,
+        user,
+        tokenType: project.integration.useManager ? 'secretsManager' : 'aes',
+        integrationId: project.integration.id,
+      });
+  
+      // Update project metadata
+      project.lastScannedAt = new Date();
+      await this.integrationProjectRepository.save(project);
+  
+      return 'processed';
+    } catch (error) {
+      this.logger.error(`[GCP] Failed to process project ${project.externalId}:`, error);
+      return 'failed';
     }
   }
 
@@ -280,51 +304,62 @@ export class GCPScanService {
     try {
       const projects = await this.gcpService.getProjects(credentialsJson);
   
-      if (projects.length > 0) {
-        this.logger.log('Saving integration projects...');
-        for (const project of projects) {
-          this.logger.log(`Processing project: ${project.projectId} - ${project.name}`);
-  
-          // Check if project already exists
-          const existingProject = await this.integrationProjectRepository.findOne({
-            where: {
-              integrationId,
-              externalId: project.projectId,
-            },
-          });
-  
-          if (existingProject) {
-            // Update existing project
-            existingProject.name = project.name;
-            existingProject.metadata = {
-              number: project.number,
-              labels: project.labels,
-              state: project.state,
-            };
-            await this.integrationProjectRepository.save(existingProject);
-          } else {
-            // Create new project
-            await this.integrationProjectRepository.save({
-              type: IntegrationType.GCP,
-              name: project.name,
-              externalId: project.projectId,
-              metadata: {
-                number: project.number,
-                labels: project.labels,
-                state: project.state,
-              },
-              integrationId,
-            });
-          }
-        }
-        this.logger.log(`Successfully updated ${projects.length} integration projects`);
-      } else {
+      if (projects.length === 0) {
         this.logger.warn('No GCP projects found for user');
+        return;
       }
+  
+      const projectResults = await this.batchProcessorService.processBatch({
+        items: projects,
+        processor: async (project) => this.processGCPProjectSave(project, integrationId),
+        config: {
+          maxConcurrency: 20,
+          batchSize: 50,
+          rateLimitDelay: 0,
+        },
+        onProgress: (processed, total) => {
+          this.logger.log(`Saved ${processed}/${total} GCP projects`);
+        }
+      });
+
+      this.logger.log(
+        `GCP project discovery completed. Success: ${projectResults.success.length}, ` +
+        `Failed: ${projectResults.failed.length}`
+      );
     } catch (projectError) {
       this.logger.error('Failed to fetch GCP projects:', projectError);
-      // Don't fail the entire integration creation
       this.logger.warn('Integration created/updated successfully, but project fetching failed.');
+    }
+  }
+
+  private async processGCPProjectSave(project: any, integrationId: string) {
+    const existingProject = await this.integrationProjectRepository.findOne({
+      where: {
+        integrationId,
+        externalId: project.projectId,
+      },
+    });
+  
+    if (existingProject) {
+      existingProject.name = project.name;
+      existingProject.metadata = {
+        number: project.number,
+        labels: project.labels,
+        state: project.state,
+      };
+      return this.integrationProjectRepository.save(existingProject);
+    } else {
+      return this.integrationProjectRepository.save({
+        type: IntegrationType.GCP,
+        name: project.name,
+        externalId: project.projectId,
+        metadata: {
+          number: project.number,
+          labels: project.labels,
+          state: project.state,
+        },
+        integrationId,
+      });
     }
   }
 
@@ -347,20 +382,6 @@ export class GCPScanService {
   }) {
     const logContent = await this.fetchLogsFromGCP(gcpProjectId, 50, credentialsJson);
 
-    const filename = `gcp-${Date.now()}.txt`;
-    const fakeFile: Express.Multer.File = {
-      originalname: filename,
-      mimetype: 'text/plain',
-      buffer: Buffer.from(logContent),
-      fieldname: 'file',
-      size: logContent.length,
-      encoding: '7bit',
-      stream: null as any,
-      destination: '',
-      filename: '',
-      path: '',
-    };
-
     return this.complianceService.create(
       {
         reportData: {
@@ -376,9 +397,8 @@ export class GCPScanService {
         projectId,
         userId: user.id,
         status: 'pending',
-        fileDataKey: '', // filled after upload
       },
-      fakeFile,
+      logContent,
       user,
       'gcp',
     );

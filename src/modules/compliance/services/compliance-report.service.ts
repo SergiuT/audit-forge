@@ -22,12 +22,12 @@ export class ComplianceReportService {
   // Get all reports
   async findAll(user: User): Promise<ComplianceReport[]> {
     const cacheKey = `reports:user:${user.id}`;
-    return this.cacheService.getOrSet(cacheKey, () => {
+    // return this.cacheService.getOrSet(cacheKey, () => {
       return this.complianceReportRepository.find({
         where: { project: { id: In(user.projects.map(p => p.id)) } },
         relations: ['findings', 'findings.actions', 'project'],
       });
-    }, 200);
+    // }, 200);
   }
 
   // Get a report by ID
@@ -52,7 +52,7 @@ export class ComplianceReportService {
   }
 
   // Create a report
-  async create(reportData: CreateComplianceReportDto, userId: number, source: string): Promise<ComplianceReport> {
+  async create(reportData: CreateComplianceReportDto): Promise<ComplianceReport> {
     const reportEntity = this.complianceReportRepository.create(reportData);        
     const savedReport = await this.complianceReportRepository.save(reportEntity);
 

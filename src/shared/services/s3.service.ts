@@ -65,7 +65,7 @@ export class S3Service {
     }
   }
 
-  async uploadFile(file: Express.Multer.File, key: string): Promise<string> {
+  async uploadFile(logContent: string, key: string): Promise<string> {
     this.checkS3Configuration();
 
     return this.retryService.withRetry({
@@ -75,8 +75,8 @@ export class S3Service {
           const command = new PutObjectCommand({
             Bucket: this.bucket,
             Key: key,
-            Body: file.buffer,
-            ContentType: file.mimetype,
+            Body: logContent,
+            ContentType: 'text/plain',
           });
 
           await this.s3Client.send(command);

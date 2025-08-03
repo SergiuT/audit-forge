@@ -5,18 +5,13 @@ import {
   Param,
   Body,
   Delete,
-  UseInterceptors,
-  UploadedFile,
   Query,
   Res,
   Logger,
-  BadRequestException,
   NotFoundException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ComplianceService } from './compliance.service';
-import { CreateComplianceReportDto } from './dto/create-compliance-report.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { NvdService } from '@/shared/services/nvd.service';
 import { User } from '@/common/decorators/user.decorator';
@@ -153,48 +148,6 @@ export class ComplianceController {
     } catch (error) {
       this.logger.error(`Failed to sync NVD rules`, error.stack);
       throw new InternalServerErrorException('Failed to sync NVD rules');
-    }
-  }
-
-  @Post()
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
-      fileFilter: (req, file, callback) => {
-        if (file.mimetype !== 'text/plain') {
-          return callback(new Error('Only .txt files are allowed'), false);
-        }
-        callback(null, true);
-      },
-    }),
-  )
-  async createCompliance(
-    @Body() createComplianceReportDto: CreateComplianceReportDto,
-    @UploadedFile() file: Express.Multer.File,
-    @User() user
-  ) {
-    this.logger.log(`Starting compliance report creation for user ${user.id}`, {
-      projectId: createComplianceReportDto.projectId,
-      fileName: file?.originalname,
-      fileSize: file?.size
-    });
-
-    try {
-      if (!file) {
-        this.logger.warn(`No file provided for compliance report creation by user ${user.id}`);
-        throw new BadRequestException('File is required');
-      }
-
-      const report = await this.complianceService.create(createComplianceReportDto, file, user, undefined);
-      this.logger.log(`Successfully created compliance report ${report.id} for user ${user.id}`);
-      return report;
-    } catch (error) {
-      if (error instanceof BadRequestException) {
-        this.logger.warn(`⚠️ Bad request for compliance report creation by user ${user.id}: ${error.message}`);
-        throw error;
-      }
-      this.logger.error(`Failed to create compliance report for user ${user.id}`, error.stack);
-      throw new InternalServerErrorException('Failed to create compliance report');
     }
   }
 

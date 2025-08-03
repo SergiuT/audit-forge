@@ -4,6 +4,7 @@ import { User } from '../auth/entities/user.entity';
 import { agentFunctions, generateNormalizationPrompt } from '@/shared/utils/ai-agent.util';
 import { ComplianceFindingResult, LogNormalizationResult, NormalizedLogEvent, SeverityOptions } from '@/shared/types/types';
 import { PineconeService } from '@/shared/services/pinecone.service';
+import { BatchProcessorService } from '@/shared/services/batch-processor.service';
 
 @Injectable()
 export class AIAgentService {
@@ -12,6 +13,7 @@ export class AIAgentService {
     constructor(
         private readonly openaiService: OpenAIService,
         private readonly pineconeService: PineconeService,
+        private readonly batchProcessorService: BatchProcessorService,
     ) { }
 
     async processMessage(message: string, context: { projectId?: string; user: User }): Promise<string> {
@@ -108,42 +110,64 @@ export class AIAgentService {
                 return [];
             }
 
-            const uniqueQueries = new Set<string>();
+            const queryMap = new Map<string, any[]>();
         
+            this.logger.log(`Normalized logs: ${JSON.stringify(normalizedLogs.normalizedEvents, null, 2)}`);
             for (const event of normalizedLogs.normalizedEvents) {
                 const query = this.buildVulnerabilitySearchQuery(event, logSource);
-                uniqueQueries.add(query);
+                if (!queryMap.has(query)) {
+                    queryMap.set(query, []);
+                }
+                queryMap.get(query)!.push(event);
             }
-            
-            const controlResults = await this.batchSearchControls(Array.from(uniqueQueries));
 
-            const findings: ComplianceFindingResult[] = [];
-            const seenRules = new Set<string>();
-            
-            for (const event of normalizedLogs.normalizedEvents) {
-                const query = this.buildVulnerabilitySearchQuery(event, logSource);
-                const controls = controlResults.get(query) || [];
-                
-                for (const control of controls) {
-                    const ruleId = control.controlId || control.id;
+            const uniqueQueries = Array.from(queryMap.keys());
+            const controlResults = await this.batchProcessorService.processBatch({
+                items: uniqueQueries,
+                processor: async (query) => {
+                    const controls = await this.pineconeService.searchComplianceControls(query, 5);
+                    return { query, controls: controls.controls || [] };
+                },
+                config: {
+                    maxConcurrency: 5,
+                    batchSize: 20,
+                    rateLimitDelay: 1000,
+                }
+            });
+
+            const allFindings = await this.batchProcessorService.processBatch({
+                items: normalizedLogs.normalizedEvents,
+                processor: async (event) => {
+                    const query = this.buildVulnerabilitySearchQuery(event, logSource);
+                    const controlResult = controlResults.success.find(r => r.query === query);
+                    const controls = controlResult?.controls || [];
                     
-                    if (ruleId && !seenRules.has(ruleId)) {
-                        seenRules.add(ruleId);
-                        
-                        findings.push({
-                            rule: ruleId,
+                    return controls
+                        .filter(control => control.controlId || control.id)
+                        .map(control => ({
+                            rule: control.controlId || control.id,
                             description: control.description || control.title || 'Control match found',
                             severity: this.mapSeverity(control?.severity),
                             category: control.category || 'compliance',
                             tags: control?.tags || event?.tags || [],
-                            mappedControls: [ruleId],
-                        });
-                    }
+                            mappedControls: [control.controlId || control.id],
+                        }));
+                },
+                config: {
+                    maxConcurrency: 20,
+                    batchSize: 100,
+                    rateLimitDelay: 0,
+                }
+            });
+
+            const uniqueFindings = new Map<string, ComplianceFindingResult>();
+            for (const batchFindings of allFindings.success) {
+                for (const finding of batchFindings) {
+                    uniqueFindings.set(finding.rule, finding);
                 }
             }
-            this.logger.log(`Findings: ${JSON.stringify(findings, null, 2)}`);
 
-            return findings;
+            return Array.from(uniqueFindings.values());
         } catch (error) {
             this.logger.error(`Error analyzing logs for compliance: ${error.message}`);
             return [];
@@ -210,25 +234,40 @@ export class AIAgentService {
     private async batchSearchControls(queries: string[]): Promise<Map<string, any[]>> {
         const results = new Map<string, any[]>();
         
-        // Process in parallel with error handling
-        const searchPromises = queries.map(async (query) => {
-            try {
-                const result = await this.pineconeService.searchComplianceControls(query, 5);
-                return { query, result: result.controls || [] };
-            } catch (error) {
-                this.logger.warn(`Failed to search controls for query: ${query}`, error);
-                return { query, result: [] };
+        const batchResult = await this.batchProcessorService.processBatch({
+            items: queries,
+            processor: async (query, index) => {
+                try {
+                    const result = await this.pineconeService.searchComplianceControls(query, 5);
+                    return { query, result: result.controls || [] };
+                } catch (error) {
+                    this.logger.warn(`Failed to search controls for query: ${query}`, error);
+                    return { query, result: [], error: error.message, index };
+                }
+            },
+            config: {
+                maxConcurrency: 5,
+                batchSize: 20,
+                rateLimitDelay: 1000,
+            },
+            onError: (query, error) => {
+                this.logger.warn(`Batch search failed for query: ${query}`, error);
+            },
+            onProgress: (processed, total) => {
+                this.logger.log(`Processed ${processed}/${total} control search queries`);
             }
         });
-        
-        const searchResults = await Promise.allSettled(searchPromises);
-        
-        searchResults.forEach((result) => {
-            if (result.status === 'fulfilled') {
-                results.set(result.value.query, result.value.result);
-            }
+    
+        // Convert results to Map
+        batchResult.success.forEach(({ query, result }) => {
+            results.set(query, result);
         });
-        
+    
+        // Log failed queries
+        if (batchResult.failed.length > 0) {
+            this.logger.warn(`Failed to process ${batchResult.failed.length} control search queries`);
+        }
+    
         return results;
     }
     
