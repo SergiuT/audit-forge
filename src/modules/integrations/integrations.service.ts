@@ -76,7 +76,6 @@ export class IntegrationsService {
       summaryGenerated: !!r.aiSummary,
       aiSummary: r.aiSummary,
       status: r.status,
-      integrationId: r.integrationProjectId,
     }));
   }
 

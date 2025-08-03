@@ -48,9 +48,6 @@ export class ComplianceReport extends BaseEntity {
   @ManyToOne(() => IntegrationProject, project => project.reports, { nullable: true })
   integrationProject: IntegrationProject;
 
-  @Column({ nullable: true })
-  integrationProjectId: string;
-
   @Column({ type: 'jsonb', nullable: true })
   controlScores?: Record<string, number>;
 

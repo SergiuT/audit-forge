@@ -27,7 +27,6 @@ export class PineconeService {
       'PINECONE_API_KEY'
     );
     
-    console.log('apiKey', apiKey);
     this.pinecone = new Pinecone({ apiKey });
     this.logger.log('Pinecone initialized with AWS Secret Manager');
   }

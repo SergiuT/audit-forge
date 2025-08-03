@@ -130,4 +130,24 @@ export const generateNormalizationPrompt = () => `
         "contextSummary": "User johndoe pushed code to repository auditforge-compliance."
     }
     \`\`\`
+
+    **3. GCP - Audit Logs:**
+
+    Input:
+    - \`logName\`: "projects/auditforge-compliance/logs/cloudaudit.googleapis.com%2Factivity"
+    - \`protoPayload\`: {
+        "methodName": "google.cloud.audit.AuditLog.LogEntry",
+        "resourceName": "projects/auditforge-compliance",
+        "resourceLocation": "eu-central-1",
+    }
+
+    Normalized output:
+    \`\`\`json
+    {
+        "eventName": "google.cloud.audit.AuditLog.LogEntry",
+        "eventSource": "gcp.googleapis.com",
+        "actor": "cloudtrail.amazonaws.com",
+        "service": "gcp",
+        "resource": "projects/auditforge-compliance",
+    }
 `;

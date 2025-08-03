@@ -1,43 +1,40 @@
 import * as protobuf from 'protobufjs';
-import { join } from 'path';
+import * as path from 'path';
 
+let auditLogRoot: protobuf.Root;
+let AuditLogType: protobuf.Type;
 // Helper to decode protoPayload
 export async function decodeGcpAuditLogs(entries: any[]): Promise<string[]> {
-  const protoPath = join(__dirname, '../schemas/auditlog.proto');
-  const root = await protobuf.load(protoPath);
-  const AuditLog = root.lookupType('google.cloud.audit.AuditLog');
+  const protoPath = path.resolve(__dirname, '../schemas/auditlog.proto');
+  auditLogRoot = await protobuf.load(protoPath);
+  AuditLogType = auditLogRoot.lookupType('google.cloud.audit.AuditLog');
 
-  const logs: string[] = [];
-
-  for (const entry of entries) {
+  return entries.map((entry) => {
     try {
-      const rawValue = entry?.data?.value;
+      const payload = entry.metadata?.protoPayload;
 
-      if (!rawValue) {
-        continue;
-      }
-
-      if (rawValue && typeof rawValue === 'object') {
-        const byteArray = Object.values(rawValue);
-        const buffer = Buffer.from(byteArray as number[]);
-
-        const decoded = AuditLog.decode(buffer);
-        const readable = AuditLog.toObject(decoded, {
+      if (payload && payload.value && Buffer.isBuffer(payload.value)) {
+        const decoded = AuditLogType.decode(payload.value);
+        const json = AuditLogType.toObject(decoded, {
           longs: String,
           enums: String,
           defaults: true,
           oneofs: true,
         });
 
-        logs.push(JSON.stringify(readable, null, 2));
-      } else {
-        logs.push('[Missing protoPayload or value]');
+        return JSON.stringify({
+          timestamp: entry.metadata.timestamp,
+          logName: entry.metadata.logName,
+          resource: entry.metadata.resource,
+          severity: entry.metadata.severity,
+          protoPayload: json,
+        }, null, 2);
       }
-    } catch (err) {
-      console.error('Failed to decode log entry:', err);
-      logs.push('[Failed to decode]');
-    }
-  }
 
-  return logs;
+      return JSON.stringify(entry.metadata, null, 2);
+    } catch (err) {
+      console.warn('Failed to decode log entry', err);
+      return JSON.stringify(entry.metadata, null, 2);
+    }
+  });
 }

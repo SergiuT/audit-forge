@@ -31,7 +31,8 @@
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "src/**/*.proto"
   ],
   "exclude": [
     "node_modules",

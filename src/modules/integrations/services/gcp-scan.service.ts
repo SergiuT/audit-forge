@@ -422,13 +422,14 @@ export class GCPScanService {
         async () => {
           try {
             const [entries]: any = await logging.getEntries({
-              // filter,
+              filter: `
+                logName="projects/${gcpProjectId}/logs/cloudaudit.googleapis.com%2Factivity"
+                timestamp >= "${new Date(Date.now() - 1000 * 60 * 60).toISOString()}"
+              `,
               pageSize: limit,
               orderBy: 'timestamp desc',
             });
             const decodedLogs = await decodeGcpAuditLogs(entries);
-
-            this.logger.log('Decoded logs', decodedLogs, null, 4);
 
             return decodedLogs.join('\n\n');
           } catch (err) {
