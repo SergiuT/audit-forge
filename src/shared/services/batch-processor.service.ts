@@ -163,22 +163,4 @@ export class BatchProcessorService {
 
         return groups;
     }
-
-    async processGroupedBatch<T, K extends string | number, R>(
-        items: T[],
-        keyExtractor: (item: T) => K,
-        groupProcessor: (key: K, groupItems: T[]) => Promise<R[]>,
-        config?: Partial<BatchConfig>
-      ): Promise<BatchResult<R[]>> {
-        const groups = this.groupBy(items, keyExtractor);
-        const flattenedItems: Array<{ key: K; items: T[] }> = Array.from(groups.entries()).map(
-          ([key, items]) => ({ key, items })
-        );
-    
-        return this.processBatch({
-          items: flattenedItems,
-          processor: async ({ key, items }) => groupProcessor(key, items),
-          config,
-        });
-    }
 }

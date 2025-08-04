@@ -209,8 +209,9 @@ export class GCPScanService {
       where: {
         type: IntegrationType.GCP,
         externalId: In(selectedProjects),
+        integration: { projectId }
       },
-      relations: ['integration'],
+      relations: ['integration', 'integration.project'],
     });
 
     const projectsByIntegration = this.batchProcessorService.groupBy(
@@ -233,16 +234,9 @@ export class GCPScanService {
       }
     });
   
-    const scanResults = {
-      processed: integrationResults.success.reduce((sum, result) => sum + result.processed, 0),
-      failed: integrationResults.success.reduce((sum, result) => sum + result.failed, 0),
-    }
-
     this.logger.log(
-      `GCP batch scan completed. Processed: ${scanResults.processed}, Failed: ${scanResults.failed}`
+      `GCP batch scan completed. Processed: ${integrationResults.success.length}, Failed: ${integrationResults.failed.length}`
     );
-
-    return scanResults;
   }
 
   private async processGCPIntegrationBatch(

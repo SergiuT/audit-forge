@@ -32,6 +32,10 @@ export class OpenAIService {
   }
 
   async getEmbedding(text: string): Promise<number[]> {
+    if (!this.openai) {
+      throw new Error('OpenAI is not initialized');
+    }
+
     const cacheKey = this.cacheService.generateAIKey(text, 'embedding');
 
     return this.cacheService.getOrSet(
@@ -55,6 +59,10 @@ export class OpenAIService {
   }
 
   async generateComplianceSummary(input: string): Promise<string> {
+    if (!this.openai) {
+      throw new Error('OpenAI is not initialized');
+    }
+
     const model = this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
     const cacheKey = this.cacheService.generateAIKey(input, model);
 
@@ -106,6 +114,10 @@ export class OpenAIService {
       attempts?: number;
     } = {}
   ): Promise<string> {
+    if (!this.openai) {
+      throw new Error('OpenAI is not initialized');
+    }
+
     const model = options.model || this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
     const cacheKey = this.cacheService.generateAIKey(`${systemPrompt}:${input}${options.attempts}`, model);
 
@@ -147,23 +159,6 @@ export class OpenAIService {
     );
   }
 
-  // Method to check AI service health
-  async healthCheck(): Promise<boolean> {
-    try {
-      await this.circuitBreakerService.execute(
-        'openai-health',
-        async () => {
-          // Simple test request
-          await this.openai.models.list();
-        },
-        { failureThreshold: 2, recoveryTimeout: 30000 }
-      );
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
   /**
    * Function calling for AI agents
   */
@@ -182,6 +177,10 @@ export class OpenAIService {
       arguments: any;
     };
   }> {
+    if (!this.openai) {
+      throw new Error('OpenAI is not initialized');
+    }
+
     const model = options.model || this.configService.get<string>('OPENAI_MODEL') || 'gpt-4';
 
     return this.retryService.withRetry({
@@ -224,5 +223,22 @@ export class OpenAIService {
       maxRetries: 2,
       retryDelay: (retryCount) => 1000 * Math.pow(2, retryCount),
     });
+  }
+
+  // Method to check AI service health
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.circuitBreakerService.execute(
+        'openai-health',
+        async () => {
+          // Simple test request
+          await this.openai.models.list();
+        },
+        { failureThreshold: 2, recoveryTimeout: 30000 }
+      );
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
 }

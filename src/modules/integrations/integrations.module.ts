@@ -8,7 +8,6 @@ import { AWSSecretManagerService } from '@/shared/services/aws-secret.service';
 import { Integration } from './entities/integration.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { IntegrationProject } from './entities/integration-project.entity';
-import { GitHubAuthService } from '@/shared/services/github-auth.service';
 import { GitHubService } from '@/shared/services/github.service';
 import { GCPService } from '@/shared/services/gcp.service';
 import { ComplianceReport } from '../compliance/entities/compliance-report.entity';
@@ -30,7 +29,6 @@ import { GithubScanService } from './services/github-scan.service';
     IntegrationsService,
     S3Service,
     AWSSecretManagerService,
-    GitHubAuthService,
     GitHubService,
     GCPService,
     AWSScanService,

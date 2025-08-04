@@ -2,7 +2,6 @@
 import { Controller, Post, Body, BadRequestException, Get, Param, NotFoundException, Query, Delete, UseInterceptors, Logger, InternalServerErrorException } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
 import { CreateIntegrationDto } from './dto/create-integration.dto';
-import { GitHubAuthService } from '@/shared/services/github-auth.service';
 import { GithubScanService } from './services/github-scan.service';
 import { GCPScanService } from './services/gcp-scan.service';
 import { AWSScanService } from './services/aws-scan.service';
@@ -17,7 +16,6 @@ export class IntegrationsController {
   private readonly logger = new Logger(IntegrationsController.name);
 
   constructor(
-    private githubAuthService: GitHubAuthService,
     private readonly integrationsService: IntegrationsService,
     private readonly githubScanService: GithubScanService,
     private readonly gcpScanService: GCPScanService,
@@ -72,7 +70,7 @@ export class IntegrationsController {
 
     try {
       const parsedState = validateOAuthState(state);
-      const token = await this.githubAuthService.exchangeCodeForToken(code);
+      const token = await this.githubScanService.exchangeCodeForToken(code);
 
       const integration = await this.githubScanService.createOrUpdateGitHubIntegration(
         token,

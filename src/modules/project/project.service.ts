@@ -1,5 +1,4 @@
-// src/modules/projects/projects.service.ts
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Project } from './entities/project.entity';
@@ -22,7 +21,7 @@ export class ProjectsService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     // Create the project
@@ -43,25 +42,25 @@ export class ProjectsService {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     return user.projects;
   }
 
-  async findOne(id: number, userId: number): Promise<Project | null> {
+  async findOne(id: number, userId: number): Promise<Project> {
     const user = await this.userRepository.findOne({ 
       where: { id: userId },
       relations: ['projects']
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const project = user.projects?.find(p => p.id === id);
     if (!project) {
-      throw new ForbiddenException('Access denied to this project');
+      throw new NotFoundException('Project not found');
     }
 
     return project

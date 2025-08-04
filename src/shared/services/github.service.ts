@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { RetryService } from './retry.service';
 import { CircuitBreakerService } from './circuit-breaker.service';
+import { Octokit } from '@octokit/rest';
 
 @Injectable()
 export class GitHubService {
@@ -11,7 +12,6 @@ export class GitHubService {
   ) { }
 
   private async getOctokit(token: string) {
-    const { Octokit } = await import('@octokit/rest');
     return new Octokit({ auth: token });
   }
 

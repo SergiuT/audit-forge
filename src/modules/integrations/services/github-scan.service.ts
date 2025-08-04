@@ -130,6 +130,7 @@ export class GithubScanService {
     // Build the where condition properly
     let whereCondition: any = {
       type: IntegrationType.GITHUB,
+      integration: { projectId }
     };
 
     // Only add externalId filter if selectedRepos is not empty
@@ -142,7 +143,7 @@ export class GithubScanService {
 
     const integrationProjects = await this.integrationProjectRepository.find({
       where: whereCondition,
-      relations: ['integration'],
+      relations: ['integration', 'integration.project'],
     });
 
     if (!integrationProjects.length) {
@@ -170,19 +171,11 @@ export class GithubScanService {
         this.logger.log(`Processed ${processed}/${total} integrations`);
       }
     });
-
-    const scanResults = {
-      processed: integrationResults.success.reduce((sum, result) => sum + result.processed, 0),
-      skipped: integrationResults.success.reduce((sum, result) => sum + result.skipped, 0),
-      failed: integrationResults.success.reduce((sum, result) => sum + result.failed, 0),
-    }
-
+    
     this.logger.log(
-      `Batch scan completed. Processed: ${scanResults.processed}, ` +
-      `Skipped: ${scanResults.skipped}, Failed: ${scanResults.failed}`
+      `Batch scan completed. Processed: ${integrationResults.success.length}, ` +
+      `Skipped: ${integrationResults.skipped.length}, Failed: ${integrationResults.failed.length}`
     );
-
-    return scanResults;
   }
 
   private async processIntegrationBatch(
@@ -360,7 +353,7 @@ export class GithubScanService {
 
       return await this.complianceService.create(dto, mergedLogs, user, 'github');
     } catch (err) {
-      console.error('GitHub log ingestion error:', err);
+      this.logger.error(`[GitHub] Failed to ingest logs for ${owner}/${repo} runId ${runId}`, err);
       throw new BadRequestException('Failed to ingest logs from GitHub');
     }
   }
@@ -428,6 +421,39 @@ export class GithubScanService {
         url: repo.html_url,
       },
       integrationId,
+    });
+  }
+
+  async exchangeCodeForToken(code: string): Promise<string> {
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        'github-oauth',
+        async () => {
+          const client_id = this.configService.get('GITHUB_CLIENT_ID');
+          const client_secret = this.configService.get('GITHUB_CLIENT_SECRET');
+  
+          const response = await axios.post(
+            'https://github.com/login/oauth/access_token',
+            {
+              client_id,
+              client_secret,
+              code,
+            },
+            {
+              headers: { Accept: 'application/json' },
+            },
+          );
+  
+          if (response.data.error) {
+            throw new Error(`GitHub OAuth failed: ${response.data.error_description}`);
+          }
+  
+          return response.data.access_token;
+        }
+      ),
+      serviceName: 'github-oauth',
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
   }
 }

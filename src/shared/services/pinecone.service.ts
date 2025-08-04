@@ -31,7 +31,11 @@ export class PineconeService {
     this.logger.log('Pinecone initialized with AWS Secret Manager');
   }
 
-  async fetchControlsByIds(controlIds: string[]): Promise<Map<string, any>> {    
+  async fetchControlsByIds(controlIds: string[]): Promise<Map<string, any>> {
+    if (!this.pinecone) {
+      throw new Error('Pinecone is not initialized');
+    }
+
     try {
       const results = new Map<string, any>();
 
@@ -73,6 +77,10 @@ export class PineconeService {
     suggestion?: string;
     error?: string;
   }> {
+    if (!this.pinecone) {
+      throw new Error('Pinecone is not initialized');
+    }
+    
     const cacheKey = this.cacheService.generateAIKey(query, 'compliance-controls');
 
     return this.cacheService.getOrSet(

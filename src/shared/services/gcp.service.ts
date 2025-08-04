@@ -59,29 +59,4 @@ export class GCPService {
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
   }
-
-  async validateCredentials(credentialsJson: string): Promise<boolean> {
-    return this.retryService.withRetry({
-      execute: () => this.circuitBreakerService.execute(
-        'gcp-validate-credentials',
-        async () => {
-          try {
-            await this.getProjects(credentialsJson);
-            return true;
-          } catch (error) {
-            this.logger.error('GCP Service: Error validating credentials', {
-              service: 'gcp-validate-credentials',
-              error: error.message,
-              status: error.response?.status,
-              gcpErrorCode: error.response?.data?.error?.code
-            });
-            return false;
-          }
-        }
-      ),
-      serviceName: 'gcp-validate-credentials',
-      maxRetries: 3,
-      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
-    });
-  }
 }
