@@ -46,7 +46,6 @@ export class JwtService {
 
         const secret = await this.awsSecretManagerService.getSecretWithFallback('jwt-refresh-secret', 'JWT_REFRESH_SECRET');
 
-        console.log('secret', secret);
         return this.jwtService.sign(payload, {
             secret,
             expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '7d',
@@ -61,7 +60,7 @@ export class JwtService {
         const refreshTokenEntity = this.refreshTokenRepository.create({
             token: refreshToken,
             userId: user.id,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
             userAgent: request?.headers['user-agent'],
             ipAddress: request?.ip || request?.connection?.remoteAddress,
         });
@@ -71,7 +70,7 @@ export class JwtService {
         return {
             accessToken,
             refreshToken,
-            expiresIn: 15 * 60, // 15 minutes in seconds
+            expiresIn: 15 * 60,
         };
     }
 
@@ -120,9 +119,6 @@ export class JwtService {
     }
 
     async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-        const payload = await this.validateRefreshToken(refreshToken);
-
-        // Get user from database
         const user = await this.refreshTokenRepository.findOne({
             where: { token: refreshToken },
             relations: ['user'],

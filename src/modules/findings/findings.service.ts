@@ -34,118 +34,10 @@ export class FindingsService {
 
   // Get findings for report
   async getFindingsForReport(reportId: number, user: User): Promise<ComplianceFinding[]> {
-    const findings = await this.findingRepository.find({
+    return await this.findingRepository.find({
       where: { report: { id: reportId }, projectId: In(user.projects.map(p => p.id)) },
-      relations: ['actions', 'report'],
+      relations: ['actions'],
     });
-
-    const allTags = findings.flatMap((f) => f.tags ?? []);
-    const tagExplanations = await this.resolveTagExplanations(allTags);
-
-    return findings.map((finding) => ({
-      ...finding,
-      tagExplanations: (finding.tags || []).map((tag) => ({
-        tag,
-        explanation: tagExplanations[tag],
-      })),
-    }));
-  }
-
-  // Get findings by tags
-  async findFindingsByTags(user: User, filters: {
-    severity?: string;
-    category?: string;
-    tags?: string[];
-    reportId?: number;
-  }): Promise<ComplianceFinding[]> {
-    const qb = this.findingRepository
-      .createQueryBuilder('finding')
-      .leftJoinAndSelect('finding.actions', 'actions')
-      .leftJoinAndSelect('finding.report', 'report')
-      .where('finding.projectId IN (:...projectIds)', { projectIds: user.projects.map(p => p.id) });
-
-    if (filters.severity) {
-      qb.andWhere('finding.severity = :severity', { severity: filters.severity });
-    }
-  
-    if (filters.category) {
-      qb.andWhere('finding.category = :category', { category: filters.category });
-    }
-  
-    if (filters.tags?.length) {
-      qb.andWhere('finding.tags && ARRAY[:...tags]', { tags: filters.tags });
-    }
-  
-    if (typeof filters.reportId === 'number') {
-      qb.andWhere('finding.reportId = :reportId', { reportId: filters.reportId });
-    }
-
-    const findings = await qb.getMany();
-
-    // 🧠 Resolve tag explanations
-    const allTags = findings.flatMap((f) => f.tags ?? []);
-    const tagExplanations = await this.resolveTagExplanations(allTags);
-
-    return findings.map((finding) => ({
-      ...finding,
-      tagExplanations: (finding.tags || []).map((tag) => ({
-        tag,
-        explanation: tagExplanations[tag],
-      })),
-    }));
-  }
-
-  // Get tag counts for findings
-  async getTagCounts(user: User): Promise<{ tag: string; count: number }[]> {
-    const findings = await this.findingRepository.find({
-      where: { projectId: In(user.projects.map(p => p.id)) },
-    });
-
-    const tagMap: Record<string, number> = {};
-
-    findings.forEach((f) => {
-      f.tags?.forEach((tag) => {
-        tagMap[tag] = (tagMap[tag] || 0) + 1;
-      });
-    });
-
-    return Object.entries(tagMap)
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count); // Sort by frequency desc
-  }
-
-  // Get AI tag explanation
-  async getTagExplanation(
-    tag: string,
-    regenerate = false,
-  ): Promise<{ tag: string; explanation: string }> {
-    // Check cache
-    let existing = await this.explanationRepository.findOne({ where: { tag } });
-    if (!regenerate && existing) {
-      return { tag: existing.tag, explanation: existing.explanation };
-    }
-
-    // Ask GPT to explain
-    const prompt = `
-      You are a security compliance expert.
-
-      Explain what the tag "${tag}" means in the context of SOC2 and ISO 27001 compliance. 
-      Your explanation should:
-      - Be clear and concise (under 120 words)
-      - Mention why this tag is relevant during audits
-      - Include 2–3 bullet points that describe:
-        • What it means
-        • When it applies
-        • Why it matters
-
-      Avoid technical jargon. Speak as if educating a startup founder preparing for their first audit.
-    `;
-
-    const explanation = await this.openaiService.generateComplianceSummary(prompt);
-
-    await this.explanationRepository.save({ tag, explanation });
-
-    return { tag, explanation };
   }
 
   async groupFindingsByControl(reportId: number, user: User): Promise<
@@ -267,16 +159,117 @@ export class FindingsService {
     });
   }
 
-  private async resolveTagExplanations(tags: string[]): Promise<Record<string, string>> {
-    const uniqueTags = [...new Set(tags)];
-    const explanations: Record<string, string> = {};
-  
-    for (const tag of uniqueTags) {
-      const { explanation } = await this.getTagExplanation(tag);
-      explanations[tag] = explanation;
+  async fetchAndCacheTagExplanationsInBackground(findings: ComplianceFinding[]) {
+    const allTags = [...new Set(findings.flatMap(f => f.tags ?? []))];
+    for (const tag of allTags) {
+      // Check if explanation exists
+      let explanation = await this.explanationRepository.findOne({ where: { tag } });
+      if (!explanation) {
+        const result = await this.getTagExplanation(tag);
+        await this.explanationRepository.save({ tag, explanation: result.explanation });
+      }
+    }
+  }
+
+  // Get findings by tags
+  async findFindingsByTags(user: User, filters: {
+    severity?: string;
+    category?: string;
+    tags?: string[];
+    reportId?: number;
+  }): Promise<ComplianceFinding[]> {
+    const qb = this.findingRepository
+      .createQueryBuilder('finding')
+      .leftJoinAndSelect('finding.actions', 'actions')
+      .leftJoinAndSelect('finding.report', 'report')
+      .where('finding.projectId IN (:...projectIds)', { projectIds: user.projects.map(p => p.id) });
+
+    if (filters.severity) {
+      qb.andWhere('finding.severity = :severity', { severity: filters.severity });
     }
   
-    return explanations;
+    if (filters.category) {
+      qb.andWhere('finding.category = :category', { category: filters.category });
+    }
+  
+    if (filters.tags?.length) {
+      qb.andWhere('finding.tags && ARRAY[:...tags]', { tags: filters.tags });
+    }
+  
+    if (typeof filters.reportId === 'number') {
+      qb.andWhere('finding.reportId = :reportId', { reportId: filters.reportId });
+    }
+
+    const findings = await qb.getMany();
+
+    // 🧠 Resolve tag explanations
+    const allTags = findings.flatMap((f) => f.tags ?? []);
+    const tagExplanations = await this.fetchTags(allTags);
+
+    return findings.map((finding) => ({
+      ...finding,
+      tagExplanations: (finding.tags || []).map((tag) => ({
+        tag,
+        explanation: tagExplanations[tag],
+      })),
+    }));
+  }
+
+  // Get tag counts for findings
+  async getTagCounts(user: User): Promise<{ tag: string; count: number }[]> {
+    const findings = await this.findingRepository.find({
+      where: { projectId: In(user.projects.map(p => p.id)) },
+    });
+
+    const tagMap: Record<string, number> = {};
+
+    findings.forEach((f) => {
+      f.tags?.forEach((tag) => {
+        tagMap[tag] = (tagMap[tag] || 0) + 1;
+      });
+    });
+
+    return Object.entries(tagMap)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count); // Sort by frequency desc
+  }
+
+  async fetchTags(tags: string[]): Promise<TagExplanation[]> {
+    return await this.explanationRepository.find({ where: { tag: In(tags) } });
+  }
+
+  // Get AI tag explanation
+  async getTagExplanation(
+    tag: string,
+    regenerate = false,
+  ): Promise<{ tag: string; explanation: string }> {
+    // Check cache
+    let existing = await this.explanationRepository.findOne({ where: { tag } });
+    if (!regenerate && existing) {
+      return { tag: existing.tag, explanation: existing.explanation };
+    }
+
+    // Ask GPT to explain
+    const prompt = `
+      You are a security compliance expert.
+
+      Explain what the tag "${tag}" means in the context of SOC2 and ISO 27001 compliance. 
+      Your explanation should:
+      - Be clear and concise (under 120 words)
+      - Mention why this tag is relevant during audits
+      - Include 2–3 bullet points that describe:
+        • What it means
+        • When it applies
+        • Why it matters
+
+      Avoid technical jargon. Speak as if educating a startup founder preparing for their first audit.
+    `;
+
+    const explanation = await this.openaiService.generateComplianceSummary(prompt);
+
+    await this.explanationRepository.save({ tag, explanation });
+
+    return { tag, explanation };
   }
 
   async getFullReport(reportId: number): Promise<ComplianceReport> {

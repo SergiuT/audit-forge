@@ -5,6 +5,7 @@ import { agentFunctions, generateNormalizationPrompt } from '@/shared/utils/ai-a
 import { ComplianceFindingResult, LogNormalizationResult, NormalizedLogEvent, SeverityOptions } from '@/shared/types/types';
 import { PineconeService } from '@/shared/services/pinecone.service';
 import { BatchProcessorService } from '@/shared/services/batch-processor.service';
+import { RetryService } from '@/shared/services/retry.service';
 
 @Injectable()
 export class AIAgentService {
@@ -14,6 +15,7 @@ export class AIAgentService {
         private readonly openaiService: OpenAIService,
         private readonly pineconeService: PineconeService,
         private readonly batchProcessorService: BatchProcessorService,
+        private readonly retryService: RetryService,
     ) { }
 
     async processMessage(message: string, context: { projectId?: string; user: User }): Promise<string> {
@@ -180,95 +182,41 @@ export class AIAgentService {
     ): Promise<LogNormalizationResult> {
         const prompt = generateNormalizationPrompt();
 
-        let attempts = 0;
-        const maxAttempts = 3;
-            
-        while (attempts < maxAttempts) {
-            try {
-                const result = await this.openaiService.generateCustomSummary(
-                    `Log file content: ${logContent}\n\n\n Log source: ${source}\n\n\n
-                    ${attempts > 0 && 'Please normalize the log content into a JSON array of objects, the first attempt failed, you returned an incomplete array structure'}
-                    `,
-                    prompt,
-                    {
-                        model: 'gpt-4o-mini',
-                        temperature: 0.1,
-                        attempts,
-                        maxTokens: 8000
-                    }
-                );
+        try {
+            const result = await this.retryService.withRetry({
+                execute: async () => {
+                    const summary = await this.openaiService.generateCustomSummary(
+                        `Log file content: ${logContent}\n\n\n Log source: ${source}`,
+                        prompt,
+                        {
+                          model: 'gpt-4o-mini',
+                          temperature: 0.1,
+                          maxTokens: 8000,
+                        }
+                    );
 
-                // Try to parse the JSON
-                const parsedResult = JSON.parse(result);
-                
-                // Validate that it's an array
-                if (Array.isArray(parsedResult)) {
+                    const parsedResult = JSON.parse(summary);
+                    if (!Array.isArray(parsedResult)) {
+                        throw new Error('Response is not an array');
+                    }
                     return {
                         success: true,
                         normalizedEvents: parsedResult,
                     };
-                } else {
-                    attempts++;
-                    throw new Error('Response is not an array');
-                }
-            } catch (parseError) {
-                attempts++;
-                this.logger.warn(`JSON parsing attempt ${attempts} failed: ${parseError.message}`);
-                
-                if (attempts >= maxAttempts) {
-                    throw new Error(`Failed to parse JSON after ${maxAttempts} attempts: ${parseError.message}`);
-                }
-                
-                // Wait a bit before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
+                },
+                maxRetries: 3,
+                retryDelay: (retryCount) => Math.min(1000 * 2 ** retryCount, 10000),
+            });
 
-        return {
-            success: false,
-            error: 'Failed to parse JSON',
-            suggestion: 'Check log format and ensure logs are valid'
-        };
-    }
-
-    private async batchSearchControls(queries: string[]): Promise<Map<string, any[]>> {
-        const results = new Map<string, any[]>();
-        
-        const batchResult = await this.batchProcessorService.processBatch({
-            items: queries,
-            processor: async (query, index) => {
-                try {
-                    const result = await this.pineconeService.searchComplianceControls(query, 5);
-                    return { query, result: result.controls || [] };
-                } catch (error) {
-                    this.logger.warn(`Failed to search controls for query: ${query}`, error);
-                    return { query, result: [], error: error.message, index };
-                }
-            },
-            config: {
-                maxConcurrency: 5,
-                batchSize: 20,
-                rateLimitDelay: 1000,
-            },
-            onError: (query, error) => {
-                this.logger.warn(`Batch search failed for query: ${query}`, error);
-            },
-            onProgress: (processed, total) => {
-                this.logger.log(`Processed ${processed}/${total} control search queries`);
-            }
-        });
-    
-        // Convert results to Map
-        batchResult.success.forEach(({ query, result }) => {
-            results.set(query, result);
-        });
-    
-        // Log failed queries
-        if (batchResult.failed.length > 0) {
-            this.logger.warn(`Failed to process ${batchResult.failed.length} control search queries`);
+            return result;
+        } catch (error) {
+            this.logger.error(`Error normalizing logs: ${error.message}`);
+            return {
+                success: false,
+                error: 'Failed to normalize logs',
+                suggestion: 'Please check the log format and ensure logs are valid'
+            };
         }
-    
-        return results;
     }
     
     private buildVulnerabilitySearchQuery(event: NormalizedLogEvent, logSource: string): string {

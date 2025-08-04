@@ -29,6 +29,7 @@ import { ComplianceFileService } from './services/compliance-file.service';
 import { ComplianceReportService } from './services/compliance-report.service';
 import { User } from '../auth/entities/user.entity';
 import { AIAgentService } from '../ai-agents/ai-agent.service';
+import { FindingsService } from '../findings/findings.service';
 
 @Injectable()
 export class ComplianceService {
@@ -53,6 +54,7 @@ export class ComplianceService {
     private readonly aiService: ComplianceAIService,
     private readonly pdfService: PdfService,
     private readonly aiAgentService: AIAgentService,
+    private readonly findingsService: FindingsService,
   ) { }
 
   // Create a new report
@@ -122,6 +124,7 @@ export class ComplianceService {
 
       // Actions
       const savedFindings = await this.findingRepository.save(findingEntities);
+      this.findingsService.fetchAndCacheTagExplanationsInBackground(savedFindings);
       const actionsToSave = savedFindings.map((finding) =>
         this.actionRepository.create({
           recommendation:
@@ -132,7 +135,7 @@ export class ComplianceService {
         }),
       );
       await this.actionRepository.save(actionsToSave);
-      await this.checklistService.createChecklistItemsForReport(report);
+      await this.checklistService.createChecklistItemsForReport(report, savedFindings);
 
       // 6. Generate AI summary asynchronously
       this.generateSummaryAsync(report.id, fileData.content, user).catch(err =>

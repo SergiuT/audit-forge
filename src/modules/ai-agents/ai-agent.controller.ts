@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Query, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, Query, Logger, InternalServerErrorException } from '@nestjs/common';
 import { AIAgentService } from './ai-agent.service';
 import { User } from '@/common/decorators/user.decorator';
 

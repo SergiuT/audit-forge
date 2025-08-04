@@ -18,6 +18,7 @@ import { ComplianceDriftService } from './services/compliance-drift.service';
 import { ComplianceFileService } from './services/compliance-file.service';
 import { ComplianceAIService } from './services/compliance-ai.service';
 import { AIAgentService } from '../ai-agents/ai-agent.service';
+import { FindingsModule } from '../findings/findings.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AIAgentService } from '../ai-agents/ai-agent.service';
       Project
     ]),
     ChecklistModule,
+    FindingsModule
   ],
   controllers: [ComplianceController],
   providers: [
@@ -41,7 +43,7 @@ import { AIAgentService } from '../ai-agents/ai-agent.service';
     ComplianceDriftService,
     ComplianceFileService,
     ComplianceAIService,
-    AIAgentService,
+    AIAgentService
   ],
   exports: [ComplianceService]
 })

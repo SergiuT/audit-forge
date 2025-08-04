@@ -49,7 +49,7 @@ export class OpenAIService {
         ),
         maxRetries: 2,
       }),
-      86400 // Cache embeddings for 24 hours
+      86400
     );
   }
 
@@ -75,7 +75,7 @@ export class OpenAIService {
                   content: input,
                 },
               ],
-              temperature: 0.3, // Lower temperature for more consistent compliance summaries
+              temperature: 0.3,
               max_tokens: 2000,
             });
 
@@ -90,7 +90,7 @@ export class OpenAIService {
         maxRetries: 3,
         retryDelay: (retryCount) => 2000 * Math.pow(2, retryCount),
       }),
-      7200 // Cache summaries for 2 hours
+      7200
     );
   }
 
@@ -140,7 +140,7 @@ export class OpenAIService {
         maxRetries: 3,
         retryDelay: (retryCount) => 2000 * Math.pow(2, retryCount),
       }),
-      3600 // Cache for 1 hour
+      3600
     );
   }
 
@@ -163,7 +163,7 @@ export class OpenAIService {
 
   /**
    * Function calling for AI agents
-   */
+  */
   async callWithFunctions(
     messages: any[],
     functions: any[],
@@ -193,7 +193,7 @@ export class OpenAIService {
               function: func
             })),
             tool_choice: 'auto',
-            temperature: options.temperature ?? 0.1, // Lower temp for more reliable function calling
+            temperature: options.temperature ?? 0.1,
             max_tokens: options.maxTokens ?? 1000,
           });
 

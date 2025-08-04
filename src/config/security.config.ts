@@ -112,6 +112,11 @@ export const SECURITY_CONFIG: Record<string, SecurityPolicy> = {
     rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
     roles: ['user', 'admin']
   },
+  '/findings/tags/explanations': {
+    auth: true,
+    rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },
+    roles: ['user', 'admin']
+  },
   '/findings/:id/grouped': {
     auth: true,
     rateLimit: { type: 'user', maxRequests: 20, windowMs: 60000 },

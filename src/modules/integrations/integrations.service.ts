@@ -46,17 +46,11 @@ export class IntegrationsService {
     return this.integrationRepository.save(integration);
   }
 
-  async getById(id: string, user: User): Promise<Integration & { decryptedCredentials: string }> {
+  async getById(id: string, user: User): Promise<Omit<Integration, 'credentials'>> {
     const integration = await this.integrationRepository.findOneOrFail({ where: { id, userId: user.id } });
+    const { credentials, ...rest } = integration;
 
-    let decrypted = '';
-    if (integration.useManager) {
-      decrypted = await this.awsSecretManagerService.getSecretValue(integration.credentials);
-    } else {
-      decrypted = decrypt(integration.credentials, this.encryptionKey);
-    }
-
-    return { ...integration, decryptedCredentials: decrypted };
+    return rest;
   }
 
   async getScanHistoryForProject(projectId: string): Promise<any[]> {

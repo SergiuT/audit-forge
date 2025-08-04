@@ -79,11 +79,7 @@ export class ChecklistService {
     });
   }
 
-  async createChecklistItemsForReport(report: ComplianceReport): Promise<void> {
-    const findings = await this.findingRepository.find({
-      where: { report: { id: report.id } },
-    });
-
+  async createChecklistItemsForReport(report: ComplianceReport, findings: ComplianceFinding[]): Promise<void> {
     const controlSet = new Set<string>();
 
     findings.forEach((f) => {

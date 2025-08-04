@@ -40,7 +40,6 @@ export class AWSScanService {
     projectId: string;
     userId: number;
   }): Promise<Integration> {
-    // Optional: Validate it works
     const creds = await this.awsSecretManagerService.assumeAwsRole(assumeRoleArn, externalId);
     const assumedAccountId = await this.awsSecretManagerService.getAwsAccountIdFromCreds({
       accessKeyId: creds.AccessKeyId!,

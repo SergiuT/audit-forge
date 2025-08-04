@@ -91,16 +91,16 @@ export class FindingsController {
     }
   }
 
-  @Get('tags/:tag/explanation')
-  async explainTag(@Query('regenerate') regenerate: string, @Param('tag') tag: string) {
-    this.logger.log(`Starting tag explanation for tag ${tag}`, { regenerate });
+  @Get('tags/explanations')
+  async getTags(@Query('tags') tags: string[]) {
+    this.logger.log('Starting tag explanations fetch');
 
     try {
-      const explanation = await this.findingsService.getTagExplanation(tag, regenerate === 'true');
-      this.logger.log(`Successfully generated explanation for tag ${tag}`);
+      const explanation = await this.findingsService.fetchTags(tags);
+      this.logger.log('Successfully fetched tag explanations');
       return explanation;
     } catch (error) {
-      this.logger.error(`Failed to generate explanation for tag ${tag}`, error.stack);
+      this.logger.error('Failed to fetch tag explanations', error.stack);
       throw new InternalServerErrorException('Failed to generate tag explanation');
     }
   }

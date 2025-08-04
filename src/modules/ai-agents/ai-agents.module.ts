@@ -9,8 +9,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
     imports: [
-        SharedModule, // For OpenAI service
-        IntegrationsModule, // For GitHub scan service
+        SharedModule, 
+        IntegrationsModule,
         HttpModule,
         TypeOrmModule.forFeature([ComplianceRule])
     ],

@@ -22,5 +22,6 @@ import { ChecklistService } from '../checklist/checklist.service';
   ],
   controllers: [FindingsController],
   providers: [FindingsService, OpenAIService, PdfService, ChecklistService],
+  exports: [TypeOrmModule, FindingsService]
 })
 export class FindingsModule {}
