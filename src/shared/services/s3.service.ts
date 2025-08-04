@@ -8,9 +8,6 @@ import * as zlib from 'zlib';
 
 @Injectable()
 export class S3Service {
-  private s3Client: S3Client;
-  private bucket?: string;
-  private isConfigured: boolean = false;
   private readonly logger = new Logger(S3Service.name);
 
   constructor(
@@ -19,7 +16,7 @@ export class S3Service {
     private circuitBreakerService: CircuitBreakerService
   ) { }
 
-  onModuleInit() {
+  createDefaultClient(): { client: S3Client, bucket: string } {
     const region = this.configService.get<string>('AWS_REGION');
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY');
     const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
@@ -27,80 +24,55 @@ export class S3Service {
 
     if (!region || !accessKeyId || !secretAccessKey || !bucket) {
       this.logger.warn('AWS S3 configuration is incomplete. File upload features will be disabled.');
-      return;
+      throw new Error('AWS S3 configuration is incomplete.');
     }
 
-    try {
-      this.s3Client = new S3Client({
-        region,
-        endpoint: `https://s3.${region}.amazonaws.com`,
-        forcePathStyle: false,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      });
-      this.bucket = bucket;
-      this.isConfigured = true;
-      this.logger.log('AWS S3 client initialized successfully');
-    } catch (error) {
-      this.logger.error('Failed to initialize AWS S3 client:', error);
-    }
+    const client = new S3Client({
+      region,
+      endpoint: `https://s3.${region}.amazonaws.com`,
+      forcePathStyle: false,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+    });
+
+    return { client, bucket };
   }
 
-  setCustomClient(client: S3Client) {
-    this.s3Client = client;
-    this.isConfigured = true;
-    this.logger.log('[S3Service] Using custom S3 client (AssumeRole session)');
-  }
-
-  resetClient() {
-    this.onModuleInit();
-  }
-
-  // Method to upload a file to S3
-  private checkS3Configuration() {
-    if (!this.isConfigured || !this.bucket) {
-      throw new Error('AWS S3 is not configured. Please check your environment variables.');
-    }
-  }
-
-  async uploadFile(logContent: string, key: string): Promise<string> {
-    this.checkS3Configuration();
-
+  async uploadFile(s3Client: S3Client, bucket: string, logContent: string, key: string): Promise<string> {
     return this.retryService.withRetry({
       execute: () => this.circuitBreakerService.execute(
         's3-upload',
         async () => {
           const command = new PutObjectCommand({
-            Bucket: this.bucket,
+            Bucket: bucket,
             Key: key,
             Body: logContent,
             ContentType: 'text/plain',
           });
 
-          await this.s3Client.send(command);
+          await s3Client.send(command);
           return key;
         }
       ),
+      serviceName: 's3-upload',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
   }
 
-  async getFile(key: string): Promise<Buffer> {
-    this.checkS3Configuration();
-
+  async getFile(s3Client: S3Client, bucket: string, key: string): Promise<Buffer> {
     return this.retryService.withRetry({
       execute: () => this.circuitBreakerService.execute(
         's3-download',
         async () => {
           const command = new GetObjectCommand({
-            Bucket: this.bucket,
+            Bucket: bucket,
             Key: key,
           });
 
-          const data = await this.s3Client.send(command);
+          const data = await s3Client.send(command);
 
           const chunks: Buffer[] = [];
           const stream = data.Body as Readable;
@@ -112,6 +84,7 @@ export class S3Service {
           return Buffer.concat(chunks);
         }
       ),
+      serviceName: 's3-download',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -145,9 +118,9 @@ export class S3Service {
     }
   }
 
-  async fetchCloudTrailLogs(prefix: string, bucket?: string): Promise<string[]> {
+  async fetchCloudTrailLogs(s3Client: S3Client, prefix: string, bucket?: string): Promise<string[]> {
     // Use provided bucket or fall back to configured bucket
-    const targetBucket = bucket || this.bucket;
+    const targetBucket = bucket;
 
     if (!targetBucket) {
       throw new Error('No S3 bucket specified for CloudTrail logs');
@@ -177,7 +150,7 @@ export class S3Service {
             if (foundLogs) break;
 
             try {
-              const list = await this.s3Client.send(new ListObjectsV2Command({
+              const list = await s3Client.send(new ListObjectsV2Command({
                 Bucket: targetBucket,
                 Prefix: recentPrefix,
               }));
@@ -194,7 +167,7 @@ export class S3Service {
                 for (const obj of recentObjects) {
                   const key = obj.Key!;
                   const getCmd = new GetObjectCommand({ Bucket: targetBucket, Key: key });
-                  const response = await this.s3Client.send(getCmd);
+                  const response = await s3Client.send(getCmd);
                   const stream = response.Body as Readable;
 
                   const chunks: Uint8Array[] = [];
@@ -228,6 +201,7 @@ export class S3Service {
           return logs;
         }
       ),
+      serviceName: 's3-cloudtrail-logs',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });

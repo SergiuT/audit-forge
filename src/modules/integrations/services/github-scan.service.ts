@@ -308,6 +308,7 @@ export class GithubScanService {
                 },
               });
             }),
+          serviceName: 'github-get-run-logs',
           maxRetries: 3,
           retryDelay: (retry) => Math.min(1000 * 2 ** retry, 5000),
         });

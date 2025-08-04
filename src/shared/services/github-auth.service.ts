@@ -40,6 +40,7 @@ export class GitHubAuthService {
           return response.data.access_token;
         }
       ),
+      serviceName: 'github-oauth',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });

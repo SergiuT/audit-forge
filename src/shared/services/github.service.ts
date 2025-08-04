@@ -25,6 +25,7 @@ export class GitHubService {
           return data;
         }
       ),
+      serviceName: 'github-user-info',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -41,6 +42,7 @@ export class GitHubService {
           });
         }
       ),
+      serviceName: 'github-list-repos',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -58,6 +60,7 @@ export class GitHubService {
           });
         }
       ),
+      serviceName: 'github-org-repos',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -77,6 +80,7 @@ export class GitHubService {
           return data.workflow_runs;
         }
       ),
+      serviceName: 'github-workflow-runs',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -92,6 +96,7 @@ export class GitHubService {
           return data;
         }
       ),
+      serviceName: 'github-list-orgs',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });

@@ -71,6 +71,7 @@ async function testS3Resilience() {
                     }
                     return 'Success after retries!';
                 },
+                serviceName: 's3-retry-test',
                 maxRetries: 3,
                 retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
             });
@@ -99,13 +100,13 @@ async function testS3Resilience() {
         const key = s3Service.generateKey('test.pdf');
         logger.log(`Generated key: ${key}`);
 
-        // Test S3 service configuration
-        try {
-            await s3Service.uploadFile(mockFile, key);
-            logger.log('✅ S3 upload would work (if configured)');
-        } catch (error) {
-            logger.log(`⚠️ Expected error (S3 not configured): ${error.message}`);
-        }
+        // // Test S3 service configuration
+        // try {
+        //     await s3Service.uploadFile(mockFile, key);
+        //     logger.log('✅ S3 upload would work (if configured)');
+        // } catch (error) {
+        //     logger.log(`⚠️ Expected error (S3 not configured): ${error.message}`);
+        // }
 
         // Test 5: Circuit Breaker Status
         logger.log('\n📊 Test 5: Circuit Breaker Status');

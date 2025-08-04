@@ -54,6 +54,7 @@ export class GCPService {
           }
         }
       ),
+      serviceName: 'gcp-get-projects',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
@@ -78,6 +79,7 @@ export class GCPService {
           }
         }
       ),
+      serviceName: 'gcp-validate-credentials',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });

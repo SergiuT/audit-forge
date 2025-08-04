@@ -21,7 +21,9 @@ export class ComplianceFileService {
       prefix || "compliance-report"
     );
 
-    const uploadedKey = await this.s3Service.uploadFile(logContent, fileKey);
+    const { client, bucket } = this.s3Service.createDefaultClient();
+
+    const uploadedKey = await this.s3Service.uploadFile(client, bucket, logContent, fileKey);
     const fileContent = logContent;
 
     return {
@@ -34,7 +36,8 @@ export class ComplianceFileService {
 
   async getFileContent(fileKey: string): Promise<string> {
     try {
-      const fileBuffer = await this.s3Service.getFile(fileKey);
+      const { client, bucket } = this.s3Service.createDefaultClient();
+      const fileBuffer = await this.s3Service.getFile(client, bucket, fileKey);
       return fileBuffer.toString('utf-8');
     } catch (error) {
       throw new BadRequestException(

@@ -33,12 +33,14 @@ export class AWSScanService {
     region = 'eu-central-1',
     projectId,
     userId,
+    bucketName,
   }: {
     assumeRoleArn: string;
     externalId?: string;
     region?: string;
     projectId: string;
     userId: number;
+    bucketName?: string;
   }): Promise<Integration> {
     const creds = await this.awsSecretManagerService.assumeAwsRole(assumeRoleArn, externalId);
     const assumedAccountId = await this.awsSecretManagerService.getAwsAccountIdFromCreds({
@@ -71,9 +73,10 @@ export class AWSScanService {
       externalId,
       projectId,
       userId,
+      credentials: '',
     });
 
-    const cloudTrailBucket = await this.discoverCloudTrailBucket(creds, region, assumedAccountId);
+    const cloudTrailBucket = await this.discoverCloudTrailBucket(creds, region, assumedAccountId, bucketName);
 
     this.logger.log(`[AWS] Discovered CloudTrail bucket ${cloudTrailBucket} for account ${assumedAccountId}`);
     await this.integrationProjectRepository.save({
@@ -93,66 +96,23 @@ export class AWSScanService {
   }
 
   async scanAWSIntegrationProjects(projectId: string, user: User) {
-    const integrationProjects = await this.integrationProjectRepository.find({
+    const integrationProject = await this.integrationProjectRepository.findOne({
       where: {
         type: IntegrationType.AWS,
         includedInScans: true,
+        integration: { projectId }
       },
-      relations: ['integration'],
+      relations: ['integration', 'integration.project'],
     });
-
-    if (integrationProjects.length === 0) {
-      this.logger.log('No AWS integration projects found to scan');
-      return { processed: 0, failed: 0 };
+  
+    if (!integrationProject) {
+      this.logger.log('No AWS integration project found to scan');
+      return;
     }
-
-    const projectsByIntegration = this.batchProcessorService.groupBy(
-      integrationProjects, 
-      project => project.integration.id
-    );
-
-    const integrationResults = await this.batchProcessorService.processBatch({
-      items: Array.from(projectsByIntegration.entries()),
-      processor: async ([integrationId, projects]) => {
-        return this.processAWSIntegrationBatch(integrationId, projects, user, projectId);
-      },
-      config: {
-        maxConcurrency: 3,
-        batchSize: 1,
-        rateLimitDelay: 2000,
-      },
-      onProgress: (processed, total) => {
-        this.logger.log(`Processed ${processed}/${total} AWS integrations`);
-      }
-    });
-
-    const scanResults = {
-      processed: integrationResults.success.reduce((sum, result) => sum + result.processed, 0),
-      failed: integrationResults.success.reduce((sum, result) => sum + result.failed, 0),
-    }
-
-    this.logger.log(
-      `AWS batch scan completed. Processed: ${scanResults.processed}, Failed: ${scanResults.failed}`
-    );
-    return scanResults;
-  }
-
-  private async processAWSIntegrationBatch(
-    integrationId: string, 
-    projects: IntegrationProject[], 
-    user: User,
-    projectId: string,
-  ) {
-    const integration = projects[0].integration;
-
-    if (!integration || integration.projectId != projectId) {
-      this.logger.warn(`[AWS] Skipping integration ${integrationId} — does not match project ${projects[0].integration.projectId}`);
-      return { processed: 0, failed: 0 };
-    }
-    
+  
     const creds = await this.awsSecretManagerService.assumeAwsRole(
-      integration.assumeRoleArn!,
-      integration.externalId || undefined
+      integrationProject.integration.assumeRoleArn!,
+      integrationProject.integration.externalId || undefined
     );
   
     const s3Creds = {
@@ -161,42 +121,26 @@ export class AWSScanService {
       sessionToken: creds.SessionToken,
       expiration: creds.Expiration,
     };
-  
-    const result = await this.batchProcessorService.processBatch({
-      items: projects,
-      processor: async (project) => this.processSingleAWSProject(project, s3Creds, user),
-      config: {
-        maxConcurrency: 5,
-        batchSize: 10,
-        rateLimitDelay: 1000,
-      },
-      onProgress: (processed, total) => {
-        this.logger.log(`Processed ${processed}/${total} AWS projects for integration ${integrationId}`);
-      }
-    });
-  
-    return {
-      processed: result.success.length,
-      failed: result.failed.length,
-    };
+    
+    await this.processAWSProject(integrationProject, s3Creds, user);
   }
-  
-  private async processSingleAWSProject(
+
+  private async processAWSProject(
     project: IntegrationProject, 
     s3Creds: any, 
     user: User
-  ): Promise<'processed' | 'failed'> {
-    try {
+  ) {
+    try { 
       this.logger.log(`[AWS] Starting scan for account ${project.externalId}`);
       
       const assumedAccountId = await this.awsSecretManagerService.getAwsAccountIdFromCreds(s3Creds);
   
       if (project.externalId !== assumedAccountId) {
         this.logger.warn(`[AWS] Skipping project ${project.externalId} — does not match assumed role account ${assumedAccountId}`);
-        return 'failed';
+        return;
       }
   
-      const s3 = new S3Client({
+      const s3Client = new S3Client({
         region: project.metadata?.region || 'us-east-1',
         credentials: {
           accessKeyId: s3Creds.accessKeyId,
@@ -205,31 +149,30 @@ export class AWSScanService {
           expiration: s3Creds.expiration,
         },
       });
-  
-      await this.s3Service.setCustomClient(s3);
-  
+    
       await this.processAwsLogs({
-        prefix: project.metadata?.prefix + project.metadata?.region || `AWSLogs/${project.externalId}/CloudTrail/${project.metadata?.region}`,
-        projectId: +project.integration.projectId,
+        s3Client,
+        prefix: project.metadata?.prefix
+          ? `${project.metadata.prefix}${project.metadata.region}`
+          : `AWSLogs/${project.externalId}/CloudTrail/${project.metadata?.region}`,
+        projectId: Number(project.integration.projectId),
         userId: Number(project.integration.userId),
         user,
         bucket: project.metadata?.bucket || `aws-cloudtrail-logs-${project.externalId}`,
       });
-  
+
       // Update project metadata
       project.lastScannedAt = new Date();
       await this.integrationProjectRepository.save(project);
   
       this.logger.log(`[AWS] Successfully scanned account ${project.externalId}`);
-      return 'processed';
     } catch (error) {
       this.logger.error(`[AWS] Failed to scan ${project.externalId}:`, error);
-      return 'failed';
     }
   }
 
-  async processAwsLogs({ prefix = 'AWSLogs', projectId, userId = 1, user, bucket }: { prefix: string; projectId: number; userId?: number, user: User, bucket?: string }) {
-    const rawLogs = await this.s3Service.fetchCloudTrailLogs(prefix, bucket);
+  async processAwsLogs({ s3Client, prefix = 'AWSLogs', projectId, userId = 1, user, bucket }: { s3Client: S3Client, prefix: string; projectId: number; userId?: number, user: User, bucket?: string }) {
+    const rawLogs = await this.s3Service.fetchCloudTrailLogs(s3Client, prefix, bucket);
     this.logger.log(`Processing ${rawLogs.length} CloudTrail log files`);
 
     if (rawLogs.length === 0) {
@@ -264,17 +207,17 @@ export class AWSScanService {
     return [result];
   }
 
-  private async discoverCloudTrailBucket(creds: any, region: string, accountId: string): Promise<string> {
+  private async discoverCloudTrailBucket(creds: any, region: string, accountId: string, bucketName?: string): Promise<string> {
     try {
       const possibleBuckets = [
-        `aws-cloudtrail-logs-${accountId}-f9b46a0f`,
-        `aws-cloudtrail-logs-${accountId}-50f5a902`,
-        `aws-cloudtrail-logs-${accountId}-b0a4ded3`,
-        // Fallback patterns
         `aws-cloudtrail-logs-${accountId}`,
         `cloudtrail-logs-${accountId}`,
         `audit-logs-${accountId}`,
       ];
+
+      if (bucketName) {
+        possibleBuckets.unshift(bucketName);
+      }
 
       const bucketResults = await this.batchProcessorService.processBatch({
         items: possibleBuckets,

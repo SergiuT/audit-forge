@@ -437,6 +437,7 @@ export class GCPScanService {
           }
         }
       ),
+      serviceName: 'gcp-fetch-logs',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });

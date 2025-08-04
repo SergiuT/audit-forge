@@ -117,6 +117,7 @@ export class IntegrationsController {
       assumeRoleArn: string;
       externalId?: string;
       region?: string;
+      bucketName?: string;
     },
     @Param('projectId') projectId: string,
     @User() user,

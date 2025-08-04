@@ -204,6 +204,7 @@ export class AIAgentService {
                         normalizedEvents: parsedResult,
                     };
                 },
+                serviceName: 'ai-agent-normalize-logs',
                 maxRetries: 3,
                 retryDelay: (retryCount) => Math.min(1000 * 2 ** retryCount, 10000),
             });

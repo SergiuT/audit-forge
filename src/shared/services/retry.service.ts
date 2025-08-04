@@ -10,6 +10,7 @@ interface RetryOptions<T> {
     maxRetries: number;
     retryCondition?: (error: any) => boolean;
     retryDelay?: (retryCount: number) => number;
+    serviceName: string;
     execute: () => Promise<T>;
     useCircuitBreaker?: boolean;
 }
@@ -72,6 +73,7 @@ export class RetryService {
 
     async withRetry<T>({
         maxRetries,
+        serviceName,
         retryCondition,
         retryDelay,
         execute,
@@ -79,17 +81,16 @@ export class RetryService {
     }: RetryOptions<T>): Promise<T> {
         let lastError: Error | null = null;
         let attempt = 0;
-        const service = execute.toString().slice(0, 32); // Use function signature as service identifier
 
-        if (useCircuitBreaker && !(await this.checkCircuitBreaker(service))) {
-            throw new Error(`Circuit breaker is OPEN for service ${service}`);
+        if (useCircuitBreaker && !(await this.checkCircuitBreaker(serviceName))) {
+            throw new Error(`Circuit breaker is OPEN for service ${serviceName}`);
         }
 
         while (attempt < maxRetries) {
             try {
                 const result = await execute();
                 if (useCircuitBreaker) {
-                    this.handleSuccess(service);
+                    this.handleSuccess(serviceName);
                 }
                 return result;
             } catch (error) {
@@ -97,7 +98,7 @@ export class RetryService {
                 attempt++;
 
                 if (useCircuitBreaker) {
-                    this.handleFailure(service);
+                    this.handleFailure(serviceName);
                 }
 
                 if (retryCondition && !retryCondition(error)) {

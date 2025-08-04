@@ -166,7 +166,12 @@ export class FindingsService {
       let explanation = await this.explanationRepository.findOne({ where: { tag } });
       if (!explanation) {
         const result = await this.getTagExplanation(tag);
-        await this.explanationRepository.save({ tag, explanation: result.explanation });
+        await this.explanationRepository
+          .createQueryBuilder()
+          .insert()
+          .values({ tag, explanation: result.explanation })
+          .orUpdate(['explanation'], ['tag'])
+          .execute();
       }
     }
   }

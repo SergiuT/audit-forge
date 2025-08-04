@@ -47,6 +47,7 @@ export class OpenAIService {
             return response.data[0].embedding;
           }
         ),
+        serviceName: 'openai-embedding',
         maxRetries: 2,
       }),
       86400
@@ -87,6 +88,7 @@ export class OpenAIService {
             return content;
           }
         ),
+        serviceName: 'openai-chat',
         maxRetries: 3,
         retryDelay: (retryCount) => 2000 * Math.pow(2, retryCount),
       }),
@@ -137,6 +139,7 @@ export class OpenAIService {
             return content;
           }
         ),
+        serviceName: 'openai-custom',
         maxRetries: 3,
         retryDelay: (retryCount) => 2000 * Math.pow(2, retryCount),
       }),
@@ -217,6 +220,7 @@ export class OpenAIService {
           return { message };
         }
       ),
+      serviceName: 'openai-function-call',
       maxRetries: 2,
       retryDelay: (retryCount) => 1000 * Math.pow(2, retryCount),
     });
