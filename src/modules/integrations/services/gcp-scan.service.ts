@@ -10,8 +10,6 @@ import { ConfigService } from "@nestjs/config";
 import { AWSSecretManagerService } from "@/shared/services/aws-secret.service";
 import { IntegrationsService } from "../integrations.service";
 import { OAuth2Client } from 'google-auth-library';
-import { RetryService } from '@/shared/services/retry.service';
-import { CircuitBreakerService } from '@/shared/services/circuit-breaker.service';
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
 import { User } from "@/modules/auth/entities/user.entity";
 import { BatchProcessorService } from "@/shared/services/batch-processor.service";
@@ -31,8 +29,6 @@ export class GCPScanService {
     private readonly awsSecretManagerService: AWSSecretManagerService,
     private readonly complianceService: ComplianceService,
     private configService: ConfigService,
-    private readonly retryService: RetryService,
-    private readonly circuitBreakerService: CircuitBreakerService,
     private readonly batchProcessorService: BatchProcessorService,
   ) { }
 

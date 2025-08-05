@@ -5,7 +5,6 @@ import { Repository } from 'typeorm';
 import { User } from '@/modules/auth/entities/user.entity';
 import { OpenAIService } from './openai.service';
 import { CacheService } from './cache.service';
-import { CircuitBreakerService } from './circuit-breaker.service';
 
 export interface HealthCheckResult {
     service: string;
@@ -31,7 +30,7 @@ export class HealthService {
         private configService: ConfigService,
         private openaiService: OpenAIService,
         private cacheService: CacheService,
-        private circuitBreakerService: CircuitBreakerService,
+
         @InjectRepository(User)
         private userRepository: Repository<User>,
     ) { }
@@ -96,16 +95,13 @@ export class HealthService {
         const start = Date.now();
         try {
             const isHealthy = await this.openaiService.healthCheck();
-            const circuitStatus =
-                this.circuitBreakerService.getCircuitStatus('openai-health');
 
             return {
                 service: 'openai',
                 status: isHealthy ? 'healthy' : 'degraded',
                 responseTime: Date.now() - start,
                 details: {
-                    circuitBreaker: circuitStatus?.state || 'CLOSED',
-                    failures: circuitStatus?.failures || 0,
+                    isHealthy,
                 },
             };
         } catch (error) {
@@ -201,19 +197,16 @@ export class HealthService {
     }
 
     async getMetrics(): Promise<{
-        circuits: Record<string, any>;
         cache: any;
         uptime: number;
         timestamp: string;
     }> {
         try {
-            const [circuits, cacheStats] = await Promise.all([
-                Promise.resolve(this.circuitBreakerService.getAllCircuits()),
+            const [cacheStats] = await Promise.all([
                 this.cacheService.getStats(),
             ]);
 
             return {
-                circuits,
                 cache: cacheStats,
                 uptime: Date.now() - this.startTime,
                 timestamp: new Date().toISOString(),
@@ -223,7 +216,6 @@ export class HealthService {
 
             // Return partial metrics on error
             return {
-                circuits: this.circuitBreakerService.getAllCircuits(),
                 cache: { enabled: false, entriesCount: 0, memoryUsage: 'Error' },
                 uptime: Date.now() - this.startTime,
                 timestamp: new Date().toISOString(),

@@ -1,4 +1,3 @@
-// src/shared/services/nvd.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { ComplianceRule, RuleSource } from '@/modules/compliance/entities/compliance-rule.entity';

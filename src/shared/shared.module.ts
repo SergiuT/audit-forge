@@ -5,7 +5,6 @@ import { User } from '@/modules/auth/entities/user.entity';
 import { OpenAIService } from './services/openai.service';
 import { CacheService } from './services/cache.service';
 import { RetryService } from './services/retry.service';
-import { CircuitBreakerService } from './services/circuit-breaker.service';
 import { HealthService } from './services/health.service';
 import { S3Service } from './services/s3.service';
 import { AWSSecretManagerService } from './services/aws-secret.service';
@@ -26,7 +25,6 @@ import { BatchProcessorService } from './services/batch-processor.service';
         // Core utility services
         CacheService,
         RetryService,
-        CircuitBreakerService,
         HealthService,
         BatchProcessorService,
 
@@ -50,7 +48,6 @@ import { BatchProcessorService } from './services/batch-processor.service';
         // Export all services so they can be used in other modules
         CacheService,
         RetryService,
-        CircuitBreakerService,
         BatchProcessorService,
         HealthService,
         OpenAIService,

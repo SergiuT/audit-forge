@@ -15,7 +15,6 @@ import { CreateComplianceReportDto } from '@/modules/compliance/dto/create-compl
 import { IntegrationsService } from "../integrations.service";
 import { ComplianceService } from "@/modules/compliance/compliance.service";
 import { RetryService } from "@/shared/services/retry.service";
-import { CircuitBreakerService } from "@/shared/services/circuit-breaker.service";
 import { createOAuthState } from "@/shared/utils/oauth-state.util";
 import { User } from "@/modules/auth/entities/user.entity";
 import { BatchProcessorService } from "@/shared/services/batch-processor.service";
@@ -39,7 +38,6 @@ export class GithubScanService {
     private readonly complianceService: ComplianceService,
     private readonly awsSecretManagerService: AWSSecretManagerService,
     private readonly retryService: RetryService,
-    private readonly circuitBreakerService: CircuitBreakerService,
   ) { }
 
   async onModuleInit(): Promise<void> {
@@ -287,20 +285,19 @@ export class GithubScanService {
 
       try {
         response = await this.retryService.withRetry({
-          execute: () =>
-            this.circuitBreakerService.execute('github-get-run-logs', async () => {
-              const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/logs`;
-              return axios({
-                url,
-                method: 'GET',
-                responseType: 'stream',
-                headers: {
-                  Authorization: `token ${token}`,
-                  'User-Agent': 'AuditForge',
-                  Accept: 'application/vnd.github.v3+json',
-                },
-              });
-            }),
+          execute: async () => {
+            const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/logs`;
+            return axios({
+              url,
+              method: 'GET',
+              responseType: 'stream',
+              headers: {
+                Authorization: `token ${token}`,
+                'User-Agent': 'AuditForge',
+                Accept: 'application/vnd.github.v3+json',
+              },
+            });
+          },
           serviceName: 'github-get-run-logs',
           maxRetries: 3,
           retryDelay: (retry) => Math.min(1000 * 2 ** retry, 5000),
@@ -426,31 +423,28 @@ export class GithubScanService {
 
   async exchangeCodeForToken(code: string): Promise<string> {
     return this.retryService.withRetry({
-      execute: () => this.circuitBreakerService.execute(
-        'github-oauth',
-        async () => {
-          const client_id = this.configService.get('GITHUB_CLIENT_ID');
-          const client_secret = this.configService.get('GITHUB_CLIENT_SECRET');
-  
-          const response = await axios.post(
-            'https://github.com/login/oauth/access_token',
-            {
-              client_id,
-              client_secret,
-              code,
-            },
-            {
-              headers: { Accept: 'application/json' },
-            },
-          );
-  
-          if (response.data.error) {
-            throw new Error(`GitHub OAuth failed: ${response.data.error_description}`);
-          }
-  
-          return response.data.access_token;
+      execute: async () => {
+        const client_id = this.configService.get('GITHUB_CLIENT_ID');
+        const client_secret = this.configService.get('GITHUB_CLIENT_SECRET');
+
+        const response = await axios.post(
+          'https://github.com/login/oauth/access_token',
+          {
+            client_id,
+            client_secret,
+            code,
+          },
+          {
+            headers: { Accept: 'application/json' },
+          },
+        );
+
+        if (response.data.error) {
+          throw new Error(`GitHub OAuth failed: ${response.data.error_description}`);
         }
-      ),
+
+        return response.data.access_token;
+      },
       serviceName: 'github-oauth',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
