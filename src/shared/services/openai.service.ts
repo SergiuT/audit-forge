@@ -211,7 +211,6 @@ export class OpenAIService {
     });
   }
 
-  // Method to check AI service health
   async healthCheck(): Promise<boolean> {
     try {
       await this.openai.models.list();

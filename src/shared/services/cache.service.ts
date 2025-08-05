@@ -175,4 +175,14 @@ export class CacheService implements OnModuleDestroy, OnApplicationShutdown {
           }
         }
     }
+
+    async healthCheck(): Promise<boolean> {
+        if (!this.isEnabled) return true;
+        try {
+            const result = await this.redisClient.ping();
+            return result === 'PONG';
+        } catch (error) {
+            return false;
+        }
+    }
 } 

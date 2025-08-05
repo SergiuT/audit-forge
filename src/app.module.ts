@@ -11,9 +11,9 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ProjectsModule } from './modules/project/project.module';
 import { AIAgentsModule } from './modules/ai-agents/ai-agents.module';
 import { SharedModule } from './shared/shared.module';
-import { HealthController } from './common/controllers/health.controller';
 import { APP_GUARD } from '@nestjs/core';
 import { SecurityGuard } from './common/guards/security.guard';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -64,6 +64,9 @@ import { SecurityGuard } from './common/guards/security.guard';
       inject: [ConfigService],
     }),
 
+    // Health Module
+    HealthModule,
+
     // Shared utilities (global)
     SharedModule,
 
@@ -75,9 +78,6 @@ import { SecurityGuard } from './common/guards/security.guard';
     IntegrationsModule,
     ProjectsModule,
     AIAgentsModule
-  ],
-  controllers: [
-    HealthController,
   ],
   providers: [
     SecurityGuard,

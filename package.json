@@ -63,6 +63,7 @@
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/sequelize": "^11.0.0",
     "@nestjs/swagger": "^11.1.5",
+    "@nestjs/terminus": "^11.0.0",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
     "@octokit/rest": "^18.12.0",

@@ -134,4 +134,13 @@ export class PineconeService {
         100
     );
   }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.pinecone.listIndexes();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 }

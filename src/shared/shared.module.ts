@@ -5,7 +5,6 @@ import { User } from '@/modules/auth/entities/user.entity';
 import { OpenAIService } from './services/openai.service';
 import { CacheService } from './services/cache.service';
 import { RetryService } from './services/retry.service';
-import { HealthService } from './services/health.service';
 import { S3Service } from './services/s3.service';
 import { AWSSecretManagerService } from './services/aws-secret.service';
 import { PdfService } from './services/pdf.service';
@@ -25,7 +24,6 @@ import { BatchProcessorService } from './services/batch-processor.service';
         // Core utility services
         CacheService,
         RetryService,
-        HealthService,
         BatchProcessorService,
 
         // AI and external services
@@ -49,7 +47,6 @@ import { BatchProcessorService } from './services/batch-processor.service';
         CacheService,
         RetryService,
         BatchProcessorService,
-        HealthService,
         OpenAIService,
         S3Service,
         AWSSecretManagerService,
