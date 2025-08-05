@@ -21,13 +21,13 @@ export class ComplianceReportService {
 
   // Get all reports
   async findAll(user: User): Promise<ComplianceReport[]> {
-    const cacheKey = `reports:user:${user.id}`;
-    return this.cacheService.getOrSet(cacheKey, () => {
+    const cacheKey = `reports:user:${user.id}1`;
+    // return this.cacheService.getOrSet(cacheKey, () => {
       return this.complianceReportRepository.find({
         where: { project: { id: In(user.projects.map(p => p.id)) } },
         relations: ['project'],
       });
-    }, 300);
+    // }, 300);
   }
 
   // Get a report by ID
