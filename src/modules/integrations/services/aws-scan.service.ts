@@ -43,6 +43,8 @@ export class AWSScanService {
     bucketName?: string;
   }): Promise<Integration> {
     const creds = await this.awsSecretManagerService.assumeAwsRole(assumeRoleArn, externalId);
+    const useAWSSecretsManager = await this.awsSecretManagerService.useAWSSecretsManager();
+
     const assumedAccountId = await this.awsSecretManagerService.getAwsAccountIdFromCreds({
       accessKeyId: creds.AccessKeyId!,
       secretAccessKey: creds.SecretAccessKey!,
@@ -68,7 +70,7 @@ export class AWSScanService {
     const integration = await this.integrationRepository.save({
       type: IntegrationType.AWS,
       name: 'AWS (AssumeRole)',
-      useManager: false,
+      useManager: useAWSSecretsManager,
       assumeRoleArn,
       externalId,
       projectId,

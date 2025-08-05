@@ -192,9 +192,9 @@ export class GithubScanService {
       items: projects,
       processor: async (project) => this.processSingleRepo(project, token, user),
       config: {
-        maxConcurrency: 10, // Limit concurrent repo processing
+        maxConcurrency: 10,
         batchSize: 20,
-        rateLimitDelay: 1000, // GitHub rate limiting
+        rateLimitDelay: 1000,
       },
       onProgress: (processed, total) => {
         this.logger.log(`Processed ${processed}/${total} repos for integration ${integrationId}`);
