@@ -54,7 +54,7 @@ export class AuthService {
     return this.jwtService.generateTokenPair(user, request);
   }
 
-  async refreshToken(refreshToken: string, request?: Request) {
+  async refreshToken(refreshToken: string) {
     try {
       return await this.jwtService.refreshAccessToken(refreshToken);
     } catch (error) {

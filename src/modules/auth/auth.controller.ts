@@ -1,5 +1,5 @@
 // src/modules/auth/auth.controller.ts
-import { Controller, Post, Body, UseGuards, Req, Get, Param, Logger, BadRequestException, UnauthorizedException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Post, Body, Req, Get, Logger, UnauthorizedException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
@@ -70,14 +70,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh access token' })
   async refreshToken(
     @Body() refreshDto: RefreshTokenDto,
-    @Req() request: Request,
   ) {
     this.logger.log(`Starting token refresh`);
 
     try {
       const result = await this.authService.refreshToken(
         refreshDto.refreshToken,
-        request,
       );
       this.logger.log(`Successfully refreshed token`);
       return result;
