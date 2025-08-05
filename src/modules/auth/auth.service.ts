@@ -16,7 +16,6 @@ export class AuthService {
   ) { }
 
   async register(username: string, email: string, password: string, request?: Request) {
-    // Check if user already exists
     const existingUser = await this.userRepository.findOne({
       where: [{ email }, { username }],
     });

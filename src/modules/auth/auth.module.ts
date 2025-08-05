@@ -6,7 +6,6 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { User } from './entities/user.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
-import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtService } from './services/jwt.service';
 import { PassportModule } from '@nestjs/passport';
 
@@ -25,7 +24,7 @@ import { PassportModule } from '@nestjs/passport';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtService],
+  providers: [AuthService, JwtService],
   controllers: [AuthController],
   exports: [AuthService, JwtService],
 })

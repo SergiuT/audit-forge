@@ -8,7 +8,6 @@ import {
   Credentials as STSCredentials,
   GetCallerIdentityCommand,
 } from '@aws-sdk/client-sts';
-import { OrganizationsClient, ListAccountsCommand } from '@aws-sdk/client-organizations';
 
 @Injectable()
 export class AWSSecretManagerService {
@@ -65,37 +64,6 @@ export class AWSSecretManagerService {
       if (!result.Credentials) throw new Error('Failed to assume role');
     
       return result.Credentials;
-    }
-
-    async discoverAwsAccounts(credentials: AwsCredentialIdentity): Promise<{ id: string, name: string, email: string }[]> {
-      const region = this.configService.get<string>('AWS_REGION');
-
-      try {
-        const org = new OrganizationsClient({ region, credentials });
-        const response = await org.send(new ListAccountsCommand());
-    
-        return (response.Accounts || []).map((acc) => ({
-          id: acc.Id!,
-          name: acc.Name!,
-          email: acc.Email!,
-        }));
-      } catch (err: any) {
-        if (err?.name === 'AWSOrganizationsNotInUseException') {
-          // Fallback to current account identity
-          const sts = new STSClient({ region, credentials });
-          const identity = await sts.send(new GetCallerIdentityCommand());
-    
-          return [
-            {
-              id: identity.Account!,
-              name: 'Root Account',
-              email: '',
-            },
-          ];
-        }
-    
-        throw err;
-      }
     }
 
     async getAwsAccountIdFromCreds(

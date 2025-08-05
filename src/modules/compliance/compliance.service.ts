@@ -179,7 +179,6 @@ export class ComplianceService {
       user
     );
 
-    // Update report with summary
     await this.reportService.update(id, {
       aiSummary: summary,
       aiSummaryGeneratedAt: new Date(),

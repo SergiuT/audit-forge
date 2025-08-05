@@ -19,7 +19,7 @@ export class SecurityGuard implements CanActivate {
     const response = context.switchToHttp().getResponse();
     const route = this.getRoutePath(request);
 
-    this.logger.log(`🔍 SecurityGuard checking route: ${route}`);
+    this.logger.log(`SecurityGuard checking route: ${route}`);
     const policy = this.getSecurityPolicy(route);
 
     if (!policy) {
@@ -83,14 +83,12 @@ export class SecurityGuard implements CanActivate {
         return { success: false, error: 'Invalid token type' };
       }
 
-      // Get user from database
       const user = await this.authService.findUserWithProjects(payload.sub);
       if (!user) {
         return { success: false, error: 'User not found' };
       }
 
       this.logger.log(`🔍 User found: ${JSON.stringify(user)}`);
-      // Set user in request (same as your current JwtAuthGuard)
       request.user = {
         id: user.id,
         email: user.email,
@@ -146,7 +144,6 @@ export class SecurityGuard implements CanActivate {
 
       this.logger.log(`Checking project access for user: ${JSON.stringify(user)}`);
 
-      // Extract projectId from params or body
       const projectId = parseInt(request.params.projectId || request.body.projectId);
 
       if (!projectId) {
@@ -159,7 +156,6 @@ export class SecurityGuard implements CanActivate {
         return { success: true };
       }
 
-      // Check if user has access to this project
       const hasAccess = user.projects?.some(p => p.id === projectId);
 
       if (!hasAccess) {

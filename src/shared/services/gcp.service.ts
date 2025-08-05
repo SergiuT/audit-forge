@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { RetryService } from './retry.service';
 import { CircuitBreakerService } from './circuit-breaker.service';
+import { decodeGcpAuditLogs } from '../utils/decode-gcp-logs.util';
+import { Logging } from '@google-cloud/logging';
 
 @Injectable()
 export class GCPService {
@@ -55,6 +57,45 @@ export class GCPService {
         }
       ),
       serviceName: 'gcp-get-projects',
+      maxRetries: 3,
+      retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
+    });
+  }
+
+  async fetchLogsFromGCP(
+    gcpProjectId: string,
+    limit = 50,
+    credentialsJson: string
+  ): Promise<string> {
+    const creds = JSON.parse(credentialsJson);
+    const logging = new Logging({
+      projectId: gcpProjectId,
+      credentials: creds,
+    });
+
+    return this.retryService.withRetry({
+      execute: () => this.circuitBreakerService.execute(
+        'gcp-fetch-logs',
+        async () => {
+          try {
+            const [entries]: any = await logging.getEntries({
+              filter: `
+                logName="projects/${gcpProjectId}/logs/cloudaudit.googleapis.com%2Factivity"
+                timestamp >= "${new Date(Date.now() - 1000 * 60 * 60).toISOString()}"
+              `,
+              pageSize: limit,
+              orderBy: 'timestamp desc',
+            });
+            const decodedLogs = await decodeGcpAuditLogs(entries);
+
+            return decodedLogs.join('\n\n');
+          } catch (err) {
+            this.logger.error('Failed to fetch logs from GCP', err);
+            throw err;
+          }
+        }
+      ),
+      serviceName: 'gcp-fetch-logs',
       maxRetries: 3,
       retryDelay: (retryCount) => Math.min(1000 * Math.pow(2, retryCount), 10000),
     });
