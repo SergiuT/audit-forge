@@ -11,7 +11,6 @@ graph TD;
     ReportService --> NVD["NVDService"];
     OpenAI --> Cache["CacheService"];
     OpenAI --> Retry["RetryService"];
-    OpenAI --> Circuit["CircuitBreakerService"];
     ComplianceService --> Logger["Logger"];
     Controller --> GlobalException["GlobalExceptionFilter"];
 ```

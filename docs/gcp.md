@@ -5,8 +5,7 @@ graph TD;
     OAuth --> Callback["OAuth Callback"];
     Callback --> Token["Store GCP Access Token via AWSSecretManagerService"];
     Token --> Retry["RetryService"];
-    Retry --> Circuit["CircuitBreakerService"];
-    Circuit --> GCPScan["GCPScanService"];
+    Retry --> GCPScan["GCPScanService"];
     GCPScan --> AIAgent["AIAgentService \(Normalize logs / Provide Compliance Controls)"]
     AIAgent --> Compliance["ComplianceService \(Scan GCP Project Logs)"];
     Compliance --> DB["Save Report via TypeORM"];
