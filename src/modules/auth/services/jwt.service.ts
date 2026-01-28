@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { User } from '../entities/user.entity';
 import { Request } from 'express';
@@ -159,7 +159,7 @@ export class JwtService {
 
     async cleanupExpiredTokens(): Promise<void> {
         await this.refreshTokenRepository.delete({
-            expiresAt: new Date(),
+            expiresAt: LessThan(new Date()),
         });
     }
 } 
